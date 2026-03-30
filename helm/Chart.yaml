@@ -1,0 +1,13 @@
+apiVersion: v2
+name: caddy
+description: Caddy ingress with WAF, TCP/UDP, cert-manager CSI, CrowdSec, GeoIP, rate limiting and caching
+type: application
+version: 0.1.0
+appVersion: "2.11.2"
+keywords:
+  - caddy
+  - ingress
+  - waf
+  - coraza
+  - l4
+  - crowdsec

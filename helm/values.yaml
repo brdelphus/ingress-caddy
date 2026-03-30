@@ -1,0 +1,248 @@
+## Caddy — custom k3s ingress with WAF, TCP/UDP, cert-manager, CrowdSec, GeoIP
+## arm64-native, all plugins toggleable
+
+nameOverride: ""
+fullnameOverride: ""
+
+image:
+  repository: ghcr.io/brdelphus/caddy-custom
+  tag: 2.11.2
+  pullPolicy: IfNotPresent
+
+# ── Plugin toggles ─────────────────────────────────────────────────────────────
+
+plugins:
+
+  # OWASP Core Rule Set WAF via Coraza (corazawaf/coraza-caddy)
+  coraza:
+    enabled: true
+    # DetectionOnly = log only, no blocking — start here, switch to On when tuned
+    ruleEngine: DetectionOnly   # DetectionOnly | On | Off
+    # Additional SecLang rules appended after CRS
+    customRules: []
+    # - "SecRule REQUEST_URI \"@contains /wp-admin\" \"id:9001,phase:1,deny,status:403,msg:'WordPress admin blocked'\""
+
+  # CrowdSec IP reputation + optional AppSec WAF (hslatman/caddy-crowdsec-bouncer)
+  # Requires CrowdSec agent DaemonSet running in the cluster
+  crowdsec:
+    enabled: false
+    lapiUrl: http://crowdsec-lapi.crowdsec.svc.cluster.local:8080
+    # Provide apiKey directly or via existingSecret (key: api-key)
+    apiKey: ""
+    existingSecret: ""
+    tickerInterval: 15s
+    appSec:
+      enabled: false
+      host: crowdsec-lapi.crowdsec.svc.cluster.local
+      port: 7422
+
+  # Sliding-window rate limiting (mholt/caddy-ratelimit)
+  rateLimit:
+    enabled: false
+    window: 1m
+    maxEvents: 100
+    # Caddy placeholder for the rate limit key — {client_ip} after trusted_proxies
+    key: "{client_ip}"
+
+  # RFC 7234 HTTP response cache (caddyserver/cache-handler / Souin)
+  cache:
+    enabled: false
+    ttl: 1h
+    # memory = in-process, redis = distributed (needed for multi-node DaemonSet)
+    backend: memory
+    redis:
+      address: ""               # e.g. redis.redis.svc.cluster.local:6379
+
+  # MaxMind GeoIP country-level blocking (porech/caddy-maxmind-geolocation)
+  geoip:
+    enabled: false
+    dbPath: /data/geoip/GeoLite2-Country.mmdb
+    # ISO 3166-1 alpha-2 country codes to block
+    deniedCountries: []         # ["CN", "RU", "KP", "IR"]
+    # Init container to download/refresh the MaxMind database
+    updater:
+      enabled: false
+      # Provide credentials directly or via existingSecret (keys: account-id, license-key)
+      accountId: ""
+      licenseKey: ""
+      existingSecret: ""
+
+  # AI scraper / cloud datacenter IP blocker (JasonLovesDoggo/caddy-defender)
+  defender:
+    enabled: false
+    action: block               # block | tarpit | garbage
+
+# ── TCP/UDP Layer 4 routing (mholt/caddy-l4) ──────────────────────────────────
+
+l4:
+  enabled: true
+
+  # Declare which L4 ports should be bound as hostPorts on the DaemonSet node.
+  # Each port+protocol must be listed here AND in routes below.
+  # DNS needs both TCP and UDP on port 53 — list them as separate entries.
+  hostPorts: []
+  # - port: 53
+  #   protocol: UDP
+  # - port: 53
+  #   protocol: TCP
+  # - port: 8000
+  #   protocol: TCP
+  # - port: 8005
+  #   protocol: TCP
+
+  # L4 routes templated into the Caddyfile global block.
+  # proxyProtocol: v2 → sends PROXY protocol v2 to the backend so it can
+  # recover the real client IP (needed for Postfix, Dovecot, HAProxy backends).
+  routes: []
+  # - address: ":53"
+  #   upstream: "udp/kube-dns.kube-system.svc.cluster.local:53"
+  # - address: ":53"
+  #   upstream: "tcp/kube-dns.kube-system.svc.cluster.local:53"
+  # - address: ":8000"
+  #   upstream: "tcp/azuracast.azuracast.svc.cluster.local:8000"
+  # - address: ":8005"
+  #   upstream: "tcp/azuracast.azuracast.svc.cluster.local:8005"
+  # - address: ":25"
+  #   upstream: "tcp/mailu-front.mail.svc.cluster.local:25"
+  #   proxyProtocol: v2
+  # - address: ":465"
+  #   upstream: "tcp/mailu-front.mail.svc.cluster.local:465"
+  #   proxyProtocol: v2
+  # - address: ":993"
+  #   upstream: "tcp/mailu-front.mail.svc.cluster.local:993"
+  #   proxyProtocol: v2
+
+# ── TLS / cert-manager ─────────────────────────────────────────────────────────
+
+tls:
+  # cert-manager CSI driver — handles rotation natively, no sidecar needed
+  # Install: https://cert-manager.io/docs/usage/csi-driver/
+  certManagerCSI:
+    enabled: true
+    issuerName: letsencrypt-prod
+    issuerKind: ClusterIssuer
+    # All domains this Caddy instance will serve TLS for
+    dnsNames: []
+    # - "*.delphus.org"
+    # - "delphus.org"
+    certFile: tls.crt
+    keyFile: tls.key
+
+  # Alternative: mount an existing Kubernetes TLS secret instead of CSI
+  existingSecret: ""
+
+  # Mount path inside the container
+  mountPath: /certs
+
+# ── Real IP / trusted proxies ──────────────────────────────────────────────────
+
+realIP:
+  enabled: true
+  # CIDRs of upstream hops Caddy should trust for X-Forwarded-For
+  # k3s default pod CIDR is 10.42.0.0/16
+  trustedProxies:
+    - 10.42.0.0/16
+    - 127.0.0.1/32
+  # Right-to-left XFF parsing — more secure, prevents IP spoofing
+  strict: true
+  # Inject X-Real-IP and X-Forwarded-* upstream — required by Mailu's nginx
+  # and other nginx-based backends that rely on these headers for real client IP
+  injectXRealIP: true
+
+# ── Security headers ───────────────────────────────────────────────────────────
+
+securityHeaders:
+  enabled: true
+  hsts:
+    enabled: true
+    maxAge: 31536000
+    includeSubDomains: true
+    preload: false
+  xContentTypeOptions: true
+  xFrameOptions: SAMEORIGIN    # SAMEORIGIN | DENY | "" (empty = omit)
+  referrerPolicy: strict-origin-when-cross-origin
+  permissionsPolicy: "geolocation=(), microphone=(), camera=()"
+  removeServerHeader: true
+
+# ── Forward auth ───────────────────────────────────────────────────────────────
+# Delegates auth to Authelia / authentik / oauth2-proxy via Caddy's built-in
+# forward_auth directive. Add `import security` to your route files to enable.
+
+forwardAuth:
+  enabled: false
+  url: http://authelia.authelia.svc.cluster.local:9091
+  uri: /api/authz/forward-auth
+  copyHeaders:
+    - Remote-User
+    - Remote-Groups
+    - Remote-Email
+    - Remote-Name
+
+# ── Observability ──────────────────────────────────────────────────────────────
+
+metrics:
+  enabled: true
+  port: 2019                    # Caddy admin API also serves /metrics here
+
+  serviceMonitor:               # Prometheus Operator ServiceMonitor
+    enabled: false
+    namespace: monitoring
+    interval: 30s
+    labels: {}
+
+tracing:
+  enabled: false
+  # OTLP gRPC endpoint — send to your OTel collector (Tempo, Jaeger, etc.)
+  endpoint: otel-collector.monitoring.svc.cluster.local:4317
+  spanName: caddy
+
+# ── Admin API ──────────────────────────────────────────────────────────────────
+
+admin:
+  # Bind to localhost only — the metrics service exposes it via ClusterIP
+  host: localhost
+  port: 2019
+
+# ── DaemonSet / pod settings ───────────────────────────────────────────────────
+
+hostPorts:
+  http: 80
+  https: 443
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+# Tolerate control-plane nodes so Caddy runs on all nodes
+tolerations:
+  - key: node-role.kubernetes.io/control-plane
+    operator: Exists
+    effect: NoSchedule
+  - key: node-role.kubernetes.io/master
+    operator: Exists
+    effect: NoSchedule
+
+nodeSelector: {}
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 1000m
+    memory: 512Mi
+
+podAnnotations: {}
+
+# Stakater Reloader — triggers rolling restart on ConfigMap changes (routes, Caddyfile)
+# Install: helm install reloader stakater/reloader -n kube-system
+# Note: cert rotation does NOT need Reloader when using certManagerCSI — the CSI driver
+# updates real files and Caddy's fsnotify detects the change natively.
+# Reloader is only needed for cert rotation if using tls.existingSecret instead of CSI.
+reloader:
+  enabled: true
+
+extraEnv: []
+extraVolumes: []
+extraVolumeMounts: []

@@ -1,0 +1,22 @@
+{{- if .Values.metrics.enabled }}
+# ClusterIP service exposing the Caddy admin/metrics port for Prometheus scraping.
+# The admin API binds to localhost on the pod; this service makes it reachable
+# cluster-wide without exposing it via hostPort.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "caddy.fullname" . }}-metrics
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "caddy.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  clusterIP: None               # headless — one endpoint per DaemonSet pod
+  selector:
+    {{- include "caddy.selectorLabels" . | nindent 4 }}
+  ports:
+  - name: admin
+    port: {{ .Values.metrics.port }}
+    targetPort: admin
+    protocol: TCP
+{{- end }}

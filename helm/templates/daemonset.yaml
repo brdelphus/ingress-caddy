@@ -1,0 +1,218 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ include "caddy.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "caddy.labels" . | nindent 4 }}
+  annotations:
+    {{- include "caddy.reloaderAnnotation" . | nindent 4 }}
+    {{- with .Values.podAnnotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "caddy.selectorLabels" . | nindent 6 }}
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        {{- include "caddy.selectorLabels" . | nindent 8 }}
+      annotations:
+        # Force pod restart when Caddyfile changes (regardless of Reloader)
+        checksum/caddyfile: {{ include (print $.Template.BasePath "/configmap-caddyfile.yaml") . | sha256sum }}
+    spec:
+      serviceAccountName: {{ include "caddy.serviceAccountName" . }}
+      tolerations:
+        {{- toYaml .Values.tolerations | nindent 8 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+      # ── Init containers ──────────────────────────────────────────────────────
+      {{- if and .Values.plugins.geoip.enabled .Values.plugins.geoip.updater.enabled }}
+      initContainers:
+      - name: geoip-updater
+        image: maxmindinc/geoipupdate:latest
+        env:
+        - name: GEOIPUPDATE_ACCOUNT_ID
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.plugins.geoip.updater.existingSecret | default (printf "%s-geoip" (include "caddy.fullname" .)) }}
+              key: account-id
+        - name: GEOIPUPDATE_LICENSE_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.plugins.geoip.updater.existingSecret | default (printf "%s-geoip" (include "caddy.fullname" .)) }}
+              key: license-key
+        - name: GEOIPUPDATE_EDITION_IDS
+          value: GeoLite2-Country
+        - name: GEOIPUPDATE_DB_DIR
+          value: /data/geoip
+        - name: GEOIPUPDATE_FREQUENCY
+          value: "0"            # run once at startup, not as a daemon
+        volumeMounts:
+        - name: geoip-data
+          mountPath: /data/geoip
+      {{- end }}
+
+      # ── Main container ───────────────────────────────────────────────────────
+      containers:
+      - name: caddy
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: 80
+          hostPort: {{ .Values.hostPorts.http }}
+          protocol: TCP
+        - name: https
+          containerPort: 443
+          hostPort: {{ .Values.hostPorts.https }}
+          protocol: TCP
+        - name: admin
+          containerPort: {{ .Values.admin.port }}
+          protocol: TCP
+        # L4 host ports — declare each port+protocol for k8s hostPort mapping
+        {{- range .Values.l4.hostPorts }}
+        - name: l4-{{ .port }}-{{ .protocol | lower }}
+          containerPort: {{ .port }}
+          hostPort: {{ .port }}
+          protocol: {{ .protocol | upper }}
+        {{- end }}
+
+        env:
+        {{- if and .Values.plugins.crowdsec.enabled .Values.plugins.crowdsec.existingSecret }}
+        - name: CROWDSEC_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.plugins.crowdsec.existingSecret }}
+              key: api-key
+        {{- end }}
+        {{- if .Values.tracing.enabled }}
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: {{ .Values.tracing.endpoint }}
+        {{- end }}
+        {{- with .Values.extraEnv }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+
+        resources:
+          {{- toYaml .Values.resources | nindent 10 }}
+
+        readinessProbe:
+          httpGet:
+            path: /
+            port: admin
+            host: localhost
+          initialDelaySeconds: 5
+          periodSeconds: 10
+
+        livenessProbe:
+          httpGet:
+            path: /
+            port: admin
+            host: localhost
+          initialDelaySeconds: 15
+          periodSeconds: 20
+
+        volumeMounts:
+        - name: caddyfile
+          mountPath: /etc/caddy/Caddyfile
+          subPath: Caddyfile
+        - name: routes
+          mountPath: /etc/caddy/routes
+        - name: caddy-data
+          mountPath: /data
+        {{- if or .Values.tls.certManagerCSI.enabled .Values.tls.existingSecret }}
+        - name: tls
+          mountPath: {{ .Values.tls.mountPath }}
+          readOnly: true
+        {{- end }}
+        {{- if .Values.plugins.geoip.enabled }}
+        - name: geoip-data
+          mountPath: /data/geoip
+          {{- if not .Values.plugins.geoip.updater.enabled }}
+          readOnly: true
+          {{- end }}
+        {{- end }}
+        {{- with .Values.extraVolumeMounts }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+
+      # ── Cert reloader sidecar ─────────────────────────────────────────────────
+      # Only needed when using existingSecret (plain Kubernetes secret volume mount).
+      # cert-manager CSI mounts real files — Caddy's fsnotify detects rotation natively,
+      # no sidecar required. For existingSecret, k8s uses symlink swaps which fsnotify
+      # may miss, so the sidecar polls and reloads via the admin API.
+      {{- if and .Values.tls.existingSecret (not .Values.reloader.enabled) }}
+      - name: cert-reloader
+        image: alpine:3.19
+        command:
+        - /bin/sh
+        - -c
+        - |
+          LAST=""
+          while true; do
+            CURRENT=$(md5sum {{ include "caddy.tlsCertPath" . }} 2>/dev/null | cut -d' ' -f1)
+            if [ -n "$CURRENT" ] && [ "$CURRENT" != "$LAST" ]; then
+              echo "cert changed, reloading caddy via admin API"
+              wget -qO- --post-data='{}' \
+                --header='Content-Type: application/json' \
+                http://localhost:{{ .Values.admin.port }}/load || true
+              LAST="$CURRENT"
+            fi
+            sleep 30
+          done
+        resources:
+          requests:
+            cpu: 5m
+            memory: 16Mi
+          limits:
+            cpu: 50m
+            memory: 32Mi
+        volumeMounts:
+        - name: tls
+          mountPath: {{ .Values.tls.mountPath }}
+          readOnly: true
+      {{- end }}
+
+      # ── Volumes ───────────────────────────────────────────────────────────────
+      volumes:
+      - name: caddyfile
+        configMap:
+          name: {{ include "caddy.fullname" . }}-caddyfile
+      - name: routes
+        configMap:
+          name: {{ include "caddy.fullname" . }}-routes
+      - name: caddy-data
+        emptyDir: {}
+
+      {{- if .Values.tls.certManagerCSI.enabled }}
+      - name: tls
+        csi:
+          driver: csi.cert-manager.io
+          readOnly: true
+          volumeAttributes:
+            csi.cert-manager.io/issuer-name: {{ .Values.tls.certManagerCSI.issuerName }}
+            csi.cert-manager.io/issuer-kind: {{ .Values.tls.certManagerCSI.issuerKind }}
+            csi.cert-manager.io/dns-names: {{ join "," .Values.tls.certManagerCSI.dnsNames | quote }}
+            csi.cert-manager.io/certificate-file: {{ .Values.tls.certManagerCSI.certFile }}
+            csi.cert-manager.io/privatekey-file: {{ .Values.tls.certManagerCSI.keyFile }}
+      {{- else if .Values.tls.existingSecret }}
+      - name: tls
+        secret:
+          secretName: {{ .Values.tls.existingSecret }}
+      {{- end }}
+
+      {{- if .Values.plugins.geoip.enabled }}
+      - name: geoip-data
+        emptyDir: {}
+      {{- end }}
+
+      {{- with .Values.extraVolumes }}
+      {{- toYaml . | nindent 6 }}
+      {{- end }}

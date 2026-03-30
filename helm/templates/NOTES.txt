@@ -1,0 +1,76 @@
+Caddy has been deployed as a DaemonSet on all nodes.
+
+NEXT STEPS
+──────────
+
+1. Build and push the custom image:
+   cd {{ .Chart.Name }}/docker
+   REGISTRY=ghcr.io/yourusername TAG={{ .Chart.AppVersion }} ./build.sh
+
+2. Add your TLS domains to values.yaml:
+   tls.certManagerCSI.dnsNames:
+     - "*.yourdomain.com"
+     - "yourdomain.com"
+
+3. Add your L4 (TCP/UDP) routes to values.yaml:
+   l4.hostPorts:
+     - port: 53
+       protocol: UDP
+   l4.routes:
+     - address: ":53"
+       upstream: "udp/kube-dns.kube-system.svc.cluster.local:53"
+
+   Then run: helm upgrade {{ .Release.Name }} ./helm
+
+4. Add HTTP/HTTPS routes by editing the routes ConfigMap directly:
+   kubectl edit configmap {{ include "caddy.fullname" . }}-routes -n {{ .Release.Namespace }}
+
+   Each .caddy key becomes an imported Caddyfile snippet. Example:
+     blog.caddy: |
+       blog.yourdomain.com {
+         tls /certs/tls.crt /certs/tls.key
+         import security
+         import upstream ghost.blog.svc.cluster.local:2368
+       }
+
+   Stakater Reloader will restart pods automatically when the ConfigMap changes.
+
+PLUGINS ENABLED
+───────────────
+{{- if .Values.plugins.coraza.enabled }}
+  ✓ Coraza WAF ({{ .Values.plugins.coraza.ruleEngine }} mode)
+{{- else }}
+  ✗ Coraza WAF (disabled)
+{{- end }}
+{{- if .Values.plugins.crowdsec.enabled }}
+  ✓ CrowdSec bouncer{{ if .Values.plugins.crowdsec.appSec.enabled }} + AppSec{{ end }}
+{{- end }}
+{{- if .Values.plugins.rateLimit.enabled }}
+  ✓ Rate limiting ({{ .Values.plugins.rateLimit.maxEvents }} req/{{ .Values.plugins.rateLimit.window }})
+{{- end }}
+{{- if .Values.plugins.cache.enabled }}
+  ✓ HTTP cache ({{ .Values.plugins.cache.backend }}, TTL {{ .Values.plugins.cache.ttl }})
+{{- end }}
+{{- if .Values.plugins.geoip.enabled }}
+  ✓ GeoIP blocking{{ if .Values.plugins.geoip.deniedCountries }} ({{ join ", " .Values.plugins.geoip.deniedCountries }}){{ end }}
+{{- end }}
+{{- if .Values.plugins.defender.enabled }}
+  ✓ AI scraper / bot defender ({{ .Values.plugins.defender.action }})
+{{- end }}
+{{- if .Values.l4.enabled }}
+  ✓ L4 TCP/UDP routing ({{ len .Values.l4.routes }} routes)
+{{- end }}
+{{- if .Values.metrics.enabled }}
+  ✓ Prometheus metrics → {{ include "caddy.fullname" . }}-metrics:{{ .Values.metrics.port }}/metrics
+{{- end }}
+{{- if .Values.tracing.enabled }}
+  ✓ OpenTelemetry tracing → {{ .Values.tracing.endpoint }}
+{{- end }}
+
+WAF NOTE
+────────
+Coraza is running in {{ .Values.plugins.coraza.ruleEngine }} mode.
+{{- if eq .Values.plugins.coraza.ruleEngine "DetectionOnly" }}
+To enable blocking once you have verified no false positives:
+  helm upgrade {{ .Release.Name }} ./helm --set plugins.coraza.ruleEngine=On
+{{- end }}

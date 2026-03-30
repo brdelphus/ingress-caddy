@@ -1,0 +1,6 @@
+# Helm chart lock and generated files
+helm/charts/
+helm/*.lock
+
+# Local override values (may contain secrets)
+helm/values.local.yaml
