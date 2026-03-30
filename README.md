@@ -1,6 +1,9 @@
 # caddy-custom
 
-A production-ready [Caddy](https://caddyserver.com) image for Kubernetes, built to fully replace Traefik or nginx-ingress. Handles TLS via cert-manager CSI, and ships with a Helm chart that makes every feature toggleable.
+> **Status: working, not yet battle-tested.**
+> Core functionality is operational and runs in a personal k3s cluster, but this project is still early. More real-world testing, edge case coverage, and community feedback is needed before it can be considered stable for general use. Contributions and issue reports are very welcome.
+
+A custom [Caddy](https://caddyserver.com) image for Kubernetes, built to replace Traefik or nginx-ingress. Handles TLS via cert-manager CSI and ships with a Helm chart that makes every feature toggleable.
 
 Includes a built-in Kubernetes Ingress controller — apps set `ingressClassName: caddy-custom` and routes appear in Caddy automatically, no manual config editing required.
 
