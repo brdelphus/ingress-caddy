@@ -308,6 +308,42 @@ k8sIngress:
     # Inject X-Real-IP + X-Forwarded-* to upstream — required by Mailu / nginx backends
     injectRealIP: true
 
+# ── Bundled Redis (optional) ───────────────────────────────────────────────────
+# When enabled, deploys a Redis pod alongside Caddy using the Bitnami Redis
+# sub-chart. caddy-k8s will automatically use it to persist the Ingress →
+# route ID mapping across Caddy restarts, preventing stale route accumulation.
+#
+# To use an external Redis instead, leave redis.enabled: false and set
+# k8sIngress.redis.address manually in the Caddyfile or via extraConfig.
+#
+# Full Bitnami Redis values reference:
+#   https://github.com/bitnami/charts/tree/main/bitnami/redis
+
+redis:
+  enabled: false
+
+  # Standalone is sufficient for single-node or DaemonSet deployments.
+  # Use replication if you need HA with multiple Caddy replicas.
+  architecture: standalone
+
+  auth:
+    enabled: false   # set to true and provide password for production
+    # password: ""
+    # existingSecret: ""
+
+  master:
+    persistence:
+      enabled: false   # set to true to survive pod restarts
+      size: 1Gi
+
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
 extraEnv: []
 extraVolumes: []
 extraVolumeMounts: []

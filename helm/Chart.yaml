@@ -2,7 +2,7 @@ apiVersion: v2
 name: caddy
 description: Caddy ingress with WAF, TCP/UDP, cert-manager CSI, CrowdSec, GeoIP, rate limiting and caching
 type: application
-version: 0.3.0
+version: 0.4.0
 appVersion: "2.11.2"
 keywords:
   - caddy
@@ -11,3 +11,9 @@ keywords:
   - coraza
   - l4
   - crowdsec
+
+dependencies:
+  - name: redis
+    version: "25.3.9"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: redis.enabled

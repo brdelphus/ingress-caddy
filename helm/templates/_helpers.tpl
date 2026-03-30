@@ -71,6 +71,14 @@ configmap.reloader.stakater.com/reload: "{{ include "caddy.fullname" . }}-caddyf
 {{- end }}
 
 {{/*
+Redis master service address — used by caddy-k8s when redis.enabled is true.
+Bitnami Redis sub-chart names the master service <release>-redis-master.
+*/}}
+{{- define "caddy.redisAddr" -}}
+{{- printf "%s-redis-master:6379" .Release.Name }}
+{{- end }}
+
+{{/*
 Generate the Caddyfile content
 */}}
 {{- define "caddy.caddyfile" -}}
@@ -86,6 +94,14 @@ Generate the Caddyfile content
       security_headers {{ if .Values.k8sIngress.security.securityHeaders }}on{{ else }}off{{ end }}
       inject_real_ip   {{ if .Values.k8sIngress.security.injectRealIP }}on{{ else }}off{{ end }}
     }
+    {{- if .Values.redis.enabled }}
+    redis {
+      address {{ include "caddy.redisAddr" . }}
+      {{- if .Values.redis.auth.enabled }}
+      password {{ .Values.redis.auth.password }}
+      {{- end }}
+    }
+    {{- end }}
   }
   {{- end }}
 
