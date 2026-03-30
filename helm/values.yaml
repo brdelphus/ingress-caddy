@@ -112,27 +112,81 @@ l4:
   #   upstream: "tcp/mailu-front.mail.svc.cluster.local:993"
   #   proxyProtocol: v2
 
-# ── TLS / cert-manager ─────────────────────────────────────────────────────────
+# ── TLS ────────────────────────────────────────────────────────────────────────
+# Three mutually exclusive backends — enable exactly one.
 
 tls:
-  # cert-manager CSI driver — handles rotation natively, no sidecar needed
-  # Install: https://cert-manager.io/docs/usage/csi-driver/
+  # ── Option 1: cert-manager CSI driver ────────────────────────────────────────
+  # External dependency — requires cert-manager + cert-manager-csi-driver.
+  # Certificates are mounted as real files; Caddy's fsnotify handles rotation.
   certManagerCSI:
     enabled: true
     issuerName: letsencrypt-prod
     issuerKind: ClusterIssuer
-    # All domains this Caddy instance will serve TLS for
     dnsNames: []
-    # - "*.example.com"
-    # - "example.com"
     certFile: tls.crt
     keyFile: tls.key
 
-  # Alternative: mount an existing Kubernetes TLS secret instead of CSI
+  # ── Option 2: CertMagic built-in ACME ────────────────────────────────────────
+  # No external dependency — Caddy handles issuance and renewal automatically.
+  # Domains are discovered from Ingress resources as apps are deployed.
+  #
+  # Challenge types:
+  #   http     — HTTP-01 on port 80. Default; no extra config needed.
+  #   tls-alpn — TLS-ALPN-01 on port 443. No extra config needed.
+  #   dns      — DNS-01 via a provider module. Required for wildcard certs or
+  #              private clusters. Build the image with DNS_PROVIDER build arg.
+  #              See https://github.com/caddy-dns for available providers.
+  #
+  # Storage backends (where CertMagic saves issued certificates):
+  #   filesystem  — /data/caddy/ inside the pod. Requires persistence (PVC or
+  #                 hostPath) to survive restarts and avoid rate limit issues.
+  #   kubernetes  — Kubernetes Secrets in the release namespace. No PVC needed;
+  #                 certs survive restarts naturally. Needs extra RBAC (auto-added).
+  #   redis       — Redis key-value store. Uses bundled Redis when redis.enabled.
+  #                 Best for multi-replica Deployments needing shared cert state.
+  acme:
+    enabled: false
+    email: ""
+    # ACME CA directory URL. Leave empty for Let's Encrypt production.
+    # Staging: https://acme-staging-v02.api.letsencrypt.org/directory
+    ca: ""
+    # Challenge type: http | tls-alpn | dns
+    challenge: http
+    # Storage backend: filesystem | kubernetes | redis
+    storage: filesystem
+    # DNS-01 config — only used when challenge: dns
+    dns:
+      # Provider name as registered in the Caddy module (e.g. cloudflare, rfc2136)
+      provider: ""
+      # Raw Caddyfile config block. Use {env.VAR_NAME} to reference credentials.
+      # Example (Cloudflare):   api_token {env.CF_API_TOKEN}
+      # Example (RFC 2136):     key_name my-key
+      #                         key_alg  hmac-sha256
+      #                         key_secret {env.TSIG_SECRET}
+      #                         nameservers dns.example.com:53
+      config: ""
+      # All keys in this secret are exposed as env vars to Caddy.
+      credentialsSecret: ""
+
+  # ── Option 3: existing TLS secret ────────────────────────────────────────────
   existingSecret: ""
 
-  # Mount path inside the container
+  # Mount path inside the container (certManagerCSI and existingSecret only)
   mountPath: /certs
+
+# ── Persistence ────────────────────────────────────────────────────────────────
+# Only needed when tls.acme.enabled and tls.acme.storage: filesystem.
+# kubernetes and redis storage handle persistence themselves.
+#
+# For DaemonSet:   hostPath (one dir per node, simple)
+# For Deployment:  storageClass PVC
+persistence:
+  enabled: false
+  hostPath: ""         # e.g. /var/lib/caddy — recommended for DaemonSet
+  storageClass: ""     # for Deployment mode with dynamic provisioning
+  size: 1Gi
+  accessMode: ReadWriteOnce
 
 # ── Real IP / trusted proxies ──────────────────────────────────────────────────
 

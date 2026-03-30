@@ -85,6 +85,42 @@ Generate the Caddyfile content
 {
   admin {{ .Values.admin.host }}:{{ .Values.admin.port }}
 
+  {{- if .Values.tls.acme.enabled }}
+
+  # ── CertMagic ACME ────────────────────────────────────────────────────────────
+  {{- if .Values.tls.acme.email }}
+  email {{ .Values.tls.acme.email }}
+  {{- end }}
+  {{- if .Values.tls.acme.ca }}
+  acme_ca {{ .Values.tls.acme.ca }}
+  {{- end }}
+
+  {{- if eq .Values.tls.acme.challenge "dns" }}
+  acme_dns {{ .Values.tls.acme.dns.provider }} {
+    {{ .Values.tls.acme.dns.config | nindent 4 | trim }}
+  }
+  {{- else if eq .Values.tls.acme.challenge "tls-alpn" }}
+  acme_challenges {
+    tls_alpn
+  }
+  {{- end }}
+  {{- /* http challenge is Caddy's default — no explicit config needed */}}
+
+  {{- if eq .Values.tls.acme.storage "kubernetes" }}
+  storage kubernetes {
+    namespace {{ .Release.Namespace }}
+  }
+  {{- else if eq .Values.tls.acme.storage "redis" }}
+  {{- $redisAddr := include "caddy.redisAddr" . }}
+  {{- $redisParts := splitList ":" $redisAddr }}
+  storage redis {
+    host       {{ index $redisParts 0 }}
+    port       {{ index $redisParts 1 }}
+    key_prefix caddy
+  }
+  {{- end }}
+  {{- end }}
+
   {{- if .Values.k8sIngress.enabled }}
   k8s_ingress {
     ingress_class {{ .Values.k8sIngress.ingressClass }}

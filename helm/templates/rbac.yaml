@@ -21,7 +21,11 @@ rules:
     verbs: ["get", "list", "watch"]
   - apiGroups: [""]
     resources: ["secrets"]
+    {{- if and .Values.tls.acme.enabled (eq .Values.tls.acme.storage "kubernetes") }}
+    verbs: ["get", "list", "create", "update", "delete"]
+    {{- else }}
     verbs: ["get"]
+    {{- end }}
   - apiGroups: [""]
     resources: ["events"]
     verbs: ["create", "patch"]

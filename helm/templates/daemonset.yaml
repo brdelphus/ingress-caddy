@@ -97,6 +97,11 @@ spec:
           protocol: {{ .protocol | upper }}
         {{- end }}
 
+        {{- if and .Values.tls.acme.enabled .Values.tls.acme.dns.credentialsSecret }}
+        envFrom:
+        - secretRef:
+            name: {{ .Values.tls.acme.dns.credentialsSecret }}
+        {{- end }}
         env:
         {{- if and .Values.plugins.crowdsec.enabled .Values.plugins.crowdsec.existingSecret }}
         - name: CROWDSEC_API_KEY
@@ -202,7 +207,16 @@ spec:
         configMap:
           name: {{ include "caddy.fullname" . }}-routes
       - name: caddy-data
+        {{- if and .Values.persistence.enabled .Values.persistence.hostPath }}
+        hostPath:
+          path: {{ .Values.persistence.hostPath }}
+          type: DirectoryOrCreate
+        {{- else if and .Values.persistence.enabled .Values.persistence.storageClass }}
+        persistentVolumeClaim:
+          claimName: {{ include "caddy.fullname" . }}-data
+        {{- else }}
         emptyDir: {}
+        {{- end }}
 
       {{- if .Values.tls.certManagerCSI.enabled }}
       - name: tls
