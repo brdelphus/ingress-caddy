@@ -117,10 +117,12 @@ helm install caddy ./helm \
 
 ### 3. Minimal `values.local.yaml`
 
+With cert-manager CSI:
+
 ```yaml
 k8sIngress:
   enabled: true
-  ingressClass: caddy-custom   # set spec.ingressClassName: caddy-custom in your apps
+  ingressClass: caddy-custom
 
 tls:
   certManagerCSI:
@@ -130,6 +132,33 @@ tls:
 realIP:
   trustedProxies:
     - 10.42.0.0/16   # k3s pod CIDR
+    - 127.0.0.1/32
+```
+
+With CertMagic built-in ACME (no cert-manager needed):
+
+```yaml
+k8sIngress:
+  enabled: true
+  ingressClass: caddy-custom
+
+tls:
+  certManagerCSI:
+    enabled: false
+  acme:
+    enabled: true
+    email: admin@example.com
+    challenge: dns
+    storage: kubernetes      # certs stored as K8s Secrets, no PVC needed
+    dns:
+      provider: cloudflare
+      config: |
+        api_token {env.CF_API_TOKEN}
+      credentialsSecret: caddy-dns-creds
+
+realIP:
+  trustedProxies:
+    - 10.42.0.0/16
     - 127.0.0.1/32
 ```
 
@@ -356,16 +385,99 @@ l4:
 
 ### TLS
 
+Three mutually exclusive backends — enable exactly one.
+
+**Option 1 — cert-manager CSI** (external dependency):
+
 ```yaml
 tls:
   certManagerCSI:
     enabled: true
     issuerName: letsencrypt-prod
     issuerKind: ClusterIssuer
-  # Alternative: use an existing TLS secret
-  existingSecret: ""
-  mountPath: /certs
 ```
+
+Requires cert-manager + cert-manager-csi-driver. Certificates are mounted as real files; Caddy's fsnotify handles rotation automatically.
+
+**Option 2 — CertMagic built-in ACME** (no external dependency):
+
+Caddy handles issuance and renewal automatically. Domains are discovered from Ingress resources as apps are deployed — no need to pre-list them.
+
+Three challenge types:
+
+```yaml
+tls:
+  certManagerCSI:
+    enabled: false
+  acme:
+    enabled: true
+    email: admin@example.com
+    ca: ""   # empty = Let's Encrypt production; set staging URL for testing
+
+    # HTTP-01 — default, no extra config needed, port 80 must be reachable
+    challenge: http
+
+    # TLS-ALPN-01 — port 443, no extra config needed, useful when port 80 is blocked
+    challenge: tls-alpn
+
+    # DNS-01 — required for wildcards and private clusters not reachable from internet
+    # The DNS provider module must be compiled into the image (DNS_PROVIDER build arg)
+    # See https://github.com/caddy-dns for available providers
+    challenge: dns
+    dns:
+      provider: cloudflare           # provider module name
+      config: |
+        api_token {env.CF_API_TOKEN} # raw Caddyfile block, use {env.X} for secrets
+      credentialsSecret: caddy-dns-creds  # all keys exposed as env vars to Caddy
+```
+
+Three storage backends for issued certificates:
+
+```yaml
+    # filesystem — default, /data/caddy/ inside the pod
+    # Requires persistence.enabled to survive restarts and avoid rate limits
+    storage: filesystem
+
+    # kubernetes — stores certs as Kubernetes Secrets in the release namespace
+    # No PVC needed; certs survive restarts naturally
+    # RBAC is automatically extended to allow secret create/update/delete
+    storage: kubernetes
+
+    # redis — uses bundled Redis when redis.enabled: true
+    # Best for multi-replica Deployments sharing cert state across pods
+    storage: redis
+```
+
+Persistence (only needed with `storage: filesystem`):
+
+```yaml
+persistence:
+  enabled: true
+  hostPath: /var/lib/caddy   # recommended for DaemonSet
+  # storageClass: longhorn   # for Deployment mode with dynamic provisioning
+```
+
+**Option 3 — existing TLS secret**:
+
+```yaml
+tls:
+  certManagerCSI:
+    enabled: false
+  existingSecret: my-tls-secret
+```
+
+**Building with a DNS provider**
+
+To use DNS-01 challenge, build the image with the `DNS_PROVIDER` build arg:
+
+```bash
+docker build \
+  --build-arg DNS_PROVIDER=github.com/caddy-dns/cloudflare \
+  -t ghcr.io/brdelphus/caddy-custom:latest \
+  docker/
+```
+
+Any provider from [github.com/caddy-dns](https://github.com/caddy-dns) works, as well as community modules (e.g. `github.com/simonvandermeer/caddy-technitium-dns-module`).
 
 ### Forward auth (Authelia / authentik)
 
