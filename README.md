@@ -131,6 +131,23 @@ k8sIngress:
     injectRealIP: true         # X-Real-IP + X-Forwarded-* to upstream
 ```
 
+Per-Ingress behaviour is controlled via `caddy.ingress/` annotations on individual Ingress resources:
+
+| Annotation | Description |
+|---|---|
+| `caddy.ingress/backend-protocol: HTTPS` | Enable TLS on the upstream transport (for HTTPS backends like Mailu) |
+| `caddy.ingress/backend-tls-insecure-skip-verify: "true"` | Skip upstream TLS verification (use with self-signed backend certs) |
+| `caddy.ingress/permanent-redirect: "https://..."` | 301-redirect all paths in this Ingress to a fixed URL (e.g. `.well-known` → `/remote.php/dav`) |
+| `caddy.ingress/proxy-http-version: "1.1"` | Force HTTP/1.1 to upstream — required for streaming and WebSocket backends |
+| `caddy.ingress/proxy-read-timeout` / `proxy-send-timeout` / `proxy-connect-timeout` | Per-route proxy timeouts (seconds) |
+| `caddy.ingress/proxy-body-size` | Max request body size (`0` = unlimited, supports `k`/`m`/`g`) |
+| `caddy.ingress/ssl-redirect: "true"` | Redirect HTTP → HTTPS with 301 |
+| `caddy.ingress/whitelist-source-range` | Comma-separated CIDRs to allow; all others get 403 |
+| `caddy.ingress/blocklist-source-range` | Comma-separated CIDRs to deny; all others pass |
+| `caddy.ingress/basic-auth-secret` | Secret name (same namespace) with `auth` htpasswd key |
+
+Full annotation reference and examples: [caddy-k8s](https://github.com/brdelphus/caddy-k8s#annotations)
+
 ### WAF (Coraza / OWASP CRS)
 
 ```yaml
