@@ -135,17 +135,25 @@ Per-Ingress behaviour is controlled via `caddy.ingress/` annotations on individu
 
 | Annotation | Description |
 |---|---|
-| `caddy.ingress/backend-protocol: HTTPS` | Enable TLS on the upstream transport (for HTTPS backends like Mailu) |
-| `caddy.ingress/backend-tls-insecure-skip-verify: "true"` | Skip upstream TLS verification (use with self-signed backend certs) |
-| `caddy.ingress/permanent-redirect: "https://..."` | 301-redirect all paths in this Ingress to a fixed URL (e.g. `.well-known` → `/remote.php/dav`) |
-| `caddy.ingress/proxy-http-version: "1.1"` | Force HTTP/1.1 to upstream — required for Icecast/HLS streaming backends |
-| `caddy.ingress/waf: "off"\|"on"\|"detection"` | Per-route WAF override — disable for streaming/incompatible backends (e.g. AzuraCast) |
-| `caddy.ingress/proxy-read-timeout` / `proxy-send-timeout` / `proxy-connect-timeout` | Per-route proxy timeouts (seconds) |
-| `caddy.ingress/proxy-body-size` | Max request body size (`0` = unlimited, supports `k`/`m`/`g`) |
 | `caddy.ingress/ssl-redirect: "true"` | Redirect HTTP → HTTPS with 301 |
-| `caddy.ingress/whitelist-source-range` | Comma-separated CIDRs to allow; all others get 403 |
-| `caddy.ingress/blocklist-source-range` | Comma-separated CIDRs to deny; all others pass |
-| `caddy.ingress/basic-auth-secret` | Secret name (same namespace) with `auth` htpasswd key |
+| `caddy.ingress/permanent-redirect: "https://..."` | 301-redirect all paths to a fixed URL |
+| `caddy.ingress/temporal-redirect: "https://..."` | 302-redirect all paths to a fixed URL |
+| `caddy.ingress/redirect-code: "308"` | Override status code for either redirect type |
+| `caddy.ingress/rewrite-target: "/"` | Rewrite request URI before proxying |
+| `caddy.ingress/server-alias` | Additional hostnames (comma-separated) |
+| `caddy.ingress/backend-protocol: HTTPS` | Enable TLS on the upstream transport |
+| `caddy.ingress/backend-tls-insecure-skip-verify: "true"` | Skip upstream TLS verification (self-signed certs) |
+| `caddy.ingress/upstream-vhost` | Override `Host` header sent to upstream |
+| `caddy.ingress/x-forwarded-prefix` | Set `X-Forwarded-Prefix` upstream header |
+| `caddy.ingress/proxy-http-version: "1.1"` | Force HTTP/1.1 to upstream (streaming backends) |
+| `caddy.ingress/proxy-next-upstream-tries` | Retry failed upstream requests N times |
+| `caddy.ingress/proxy-read-timeout` / `proxy-send-timeout` / `proxy-connect-timeout` | Per-route proxy timeouts (seconds) |
+| `caddy.ingress/proxy-body-size` | Max request body size (`0` = unlimited) |
+| `caddy.ingress/limit-rps` | Max requests/second per client IP |
+| `caddy.ingress/waf: "off"\|"on"\|"detection"` | Per-route WAF override |
+| `caddy.ingress/whitelist-source-range` | CIDRs to allow; all others 403 |
+| `caddy.ingress/blocklist-source-range` | CIDRs to deny; all others pass |
+| `caddy.ingress/basic-auth-secret` | Secret with `auth` htpasswd key |
 
 Full annotation reference and examples: [caddy-k8s](https://github.com/brdelphus/caddy-k8s#annotations)
 
