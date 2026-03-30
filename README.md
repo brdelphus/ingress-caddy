@@ -106,7 +106,9 @@ helm install cert-manager-csi-driver jetstack/cert-manager-csi-driver -n cert-ma
 
 Caddy detects cert rotation via fsnotify and reloads certificates automatically — no restart needed.
 
-[Stakater Reloader](https://github.com/stakater/Reloader) is **optional** — only useful if you want pods to restart automatically when Helm values or ConfigMaps change:
+**Config hot-reload is built in.** The `k8s_config_reloader` module (enabled by default) watches the Caddyfile ConfigMap and calls Caddy's admin API when it changes — no pod restart ever needed, not even for Helm upgrades that modify the Caddyfile.
+
+Stakater Reloader is **not needed** and is disabled by default. If you prefer pod restarts over in-place reloads, set `configReloader.enabled: false` and `reloader.enabled: true` and install it separately:
 
 ```bash
 helm install reloader stakater/reloader -n kube-system
@@ -302,6 +304,20 @@ redis:
 All `redis.*` values are passed through to the Bitnami Redis sub-chart. The address is wired into caddy-k8s automatically — no manual configuration needed.
 
 To use an **external** Redis instead, leave `redis.enabled: false` and configure the address directly in the Caddyfile via the `k8s_ingress` global block.
+
+### Built-in config reloader
+
+The `k8s_config_reloader` Caddy module watches the Caddyfile ConfigMap and reloads Caddy in-place via `POST /load` when it changes. No pod restart, no Stakater Reloader dependency.
+
+```yaml
+configReloader:
+  enabled: true         # default — hot-reloads Caddyfile on ConfigMap change
+  # configmap: ""       # defaults to <release>-caddyfile
+  # key: Caddyfile      # key inside ConfigMap.data
+  # adminAPI: ""        # defaults to localhost:2019
+```
+
+When enabled, Helm upgrades that modify the Caddyfile will no longer cause a rolling restart — Caddy picks up the new config within seconds.
 
 ### WAF (Coraza / OWASP CRS)
 
