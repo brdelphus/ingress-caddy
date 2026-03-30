@@ -28,7 +28,9 @@ jobs:
         uses: azure/setup-helm@v4
 
       - name: Update chart dependencies
-        run: helm dependency update helm/
+        run: |
+          helm repo add bitnami https://charts.bitnami.com/bitnami
+          helm dependency update helm/
 
       - name: Generate release notes
         run: |
