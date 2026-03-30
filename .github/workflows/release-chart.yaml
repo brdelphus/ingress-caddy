@@ -45,10 +45,10 @@ jobs:
             RANGE="${PREV_TAG:+${PREV_TAG}..HEAD}"
             [ -z "$RANGE" ] && RANGE="HEAD"
 
-            FEATURES=$(git log $RANGE --pretty=format:"%s (%h)" -- helm/ | grep -iE "^feat")
-            FIXES=$(git log $RANGE --pretty=format:"%s (%h)" -- helm/ | grep -iE "^fix")
-            DOCS=$(git log $RANGE --pretty=format:"%s (%h)" -- helm/ | grep -iE "^docs")
-            OTHER=$(git log $RANGE --pretty=format:"%s (%h)" -- helm/ | grep -ivE "^(feat|fix|docs)")
+            FEATURES=$(git log $RANGE --pretty=format:"%s (%h)" -- helm/ | grep -iE "^feat" || true)
+            FIXES=$(git log $RANGE --pretty=format:"%s (%h)" -- helm/ | grep -iE "^fix" || true)
+            DOCS=$(git log $RANGE --pretty=format:"%s (%h)" -- helm/ | grep -iE "^docs" || true)
+            OTHER=$(git log $RANGE --pretty=format:"%s (%h)" -- helm/ | grep -ivE "^(feat|fix|docs)" || true)
 
             if [ -n "$FEATURES" ]; then
               echo "### Features"
