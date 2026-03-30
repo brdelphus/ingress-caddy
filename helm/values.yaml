@@ -203,9 +203,43 @@ admin:
   host: localhost
   port: 2019
 
+# ── LoadBalancer service ───────────────────────────────────────────────────────
+# Creates a Service that fronts the DaemonSet. Use this with MetalLB, cloud LBs
+# (AWS NLB, GCE, etc.), or any cluster that has a LoadBalancer provider.
+# For bare-metal k3s without a LB, leave disabled and use hostPorts below.
+#
+# externalTrafficPolicy: Local is strongly recommended — it preserves the real
+# client IP without requiring trusted_proxies adjustments, and avoids an extra
+# hop through kube-proxy on a different node.
+#
+# L4 ports (l4.hostPorts) are automatically included in the Service so you only
+# need to declare them once.
+
+service:
+  enabled: false
+  type: LoadBalancer
+  # Request a specific IP from your LB provider (MetalLB pool IP, Elastic IP, etc.)
+  loadBalancerIP: ""
+  # Local = real client IP preserved + LB only routes to nodes running a pod
+  # Cluster = client IP is lost (replaced by node IP) but traffic is spread across all nodes
+  externalTrafficPolicy: Local
+  annotations: {}
+    # MetalLB address pool:
+    # metallb.universe.tf/address-pool: production
+    #
+    # AWS Network Load Balancer:
+    # service.beta.kubernetes.io/aws-load-balancer-type: nlb
+    #
+    # GCE internal LB:
+    # cloud.google.com/load-balancer-type: Internal
+
 # ── DaemonSet / pod settings ───────────────────────────────────────────────────
+# hostPorts bind directly on each node's network interface.
+# Can coexist with the LoadBalancer service — disable if your LB provider
+# conflicts with hostPort binding (rare).
 
 hostPorts:
+  enabled: true
   http: 80
   https: 443
 

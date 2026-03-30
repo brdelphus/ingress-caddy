@@ -67,11 +67,15 @@ spec:
         ports:
         - name: http
           containerPort: 80
+          {{- if .Values.hostPorts.enabled }}
           hostPort: {{ .Values.hostPorts.http }}
+          {{- end }}
           protocol: TCP
         - name: https
           containerPort: 443
+          {{- if .Values.hostPorts.enabled }}
           hostPort: {{ .Values.hostPorts.https }}
+          {{- end }}
           protocol: TCP
         - name: admin
           containerPort: {{ .Values.admin.port }}
@@ -80,7 +84,9 @@ spec:
         {{- range .Values.l4.hostPorts }}
         - name: l4-{{ .port }}-{{ .protocol | lower }}
           containerPort: {{ .port }}
+          {{- if $.Values.hostPorts.enabled }}
           hostPort: {{ .port }}
+          {{- end }}
           protocol: {{ .protocol | upper }}
         {{- end }}
 
