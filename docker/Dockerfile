@@ -13,8 +13,8 @@ RUN xcaddy build \
     --with github.com/mholt/caddy-ratelimit@b8d8c9a9d99e \
     # RFC 7234 HTTP cache (targets Caddy v2.10.0, compat with v2.11.2)
     --with github.com/caddyserver/cache-handler@v0.16.0 \
-    # GeoIP country blocking (v1.0.0 tag had checksum mismatch — use v1.0.2)
-    --with github.com/porech/caddy-maxmind-geolocation@v1.0.2 \
+    # GeoIP country blocking (v1.0.0 had checksum mismatch, v1.0.2 is phantom — use v1.0.1)
+    --with github.com/porech/caddy-maxmind-geolocation@v1.0.1 \
     # CrowdSec IP reputation + AppSec (targets Caddy v2.10.2, compat with v2.11.2)
     --with github.com/hslatman/caddy-crowdsec-bouncer@v0.10.1 \
     # AI scraper / cloud IP blocker (targets Caddy v2.10.2, compat with v2.11.2)
