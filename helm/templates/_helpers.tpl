@@ -77,6 +77,18 @@ Generate the Caddyfile content
 {
   admin {{ .Values.admin.host }}:{{ .Values.admin.port }}
 
+  {{- if .Values.k8sIngress.enabled }}
+  k8s_ingress {
+    ingress_class {{ .Values.k8sIngress.ingressClass }}
+    security {
+      waf              {{ if .Values.k8sIngress.security.waf }}on{{ else }}off{{ end }}
+      waf_mode         {{ .Values.k8sIngress.security.wafMode }}
+      security_headers {{ if .Values.k8sIngress.security.securityHeaders }}on{{ else }}off{{ end }}
+      inject_real_ip   {{ if .Values.k8sIngress.security.injectRealIP }}on{{ else }}off{{ end }}
+    }
+  }
+  {{- end }}
+
   {{- if .Values.plugins.coraza.enabled }}
   order coraza_waf first
   {{- end }}

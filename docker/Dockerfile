@@ -17,10 +17,12 @@ RUN xcaddy build \
     --with github.com/porech/caddy-maxmind-geolocation@v1.0.1 \
     # CrowdSec IP reputation + AppSec (targets Caddy v2.10.2, compat with v2.11.2)
     --with github.com/hslatman/caddy-crowdsec-bouncer@v0.10.1 \
-    # AI scraper / cloud IP blocker — module path differs from GitHub repo path
-    --with pkg.jsn.cam/caddy-defender=github.com/jasonlovesdoggo/caddy-defender@v0.10.0
+    # AI scraper / cloud datacenter IP blocker — module path differs from GitHub repo path
+    --with pkg.jsn.cam/caddy-defender=github.com/jasonlovesdoggo/caddy-defender@v0.10.0 \
+    # Kubernetes Ingress controller — watches ingressClassName: caddy-custom
+    --with github.com/brdelphus/caddy-k8s
 
 FROM caddy:2.11.2
 COPY --from=builder /usr/bin/caddy /usr/bin/caddy
 
-LABEL org.opencontainers.image.description="Caddy with WAF, L4, rate limiting, cache, GeoIP, CrowdSec, defender"
+LABEL org.opencontainers.image.description="Caddy with WAF, L4, rate limiting, cache, GeoIP, CrowdSec, defender, k8s-ingress"

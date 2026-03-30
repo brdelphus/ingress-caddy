@@ -1,0 +1,14 @@
+{{- if .Values.k8sIngress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata:
+  name: {{ .Values.k8sIngress.ingressClass }}
+  labels:
+    {{- include "caddy.labels" . | nindent 4 }}
+  {{- if .Values.k8sIngress.isDefaultClass }}
+  annotations:
+    ingressclass.kubernetes.io/is-default-class: "true"
+  {{- end }}
+spec:
+  controller: caddy.io/{{ .Values.k8sIngress.ingressClass }}
+{{- end }}

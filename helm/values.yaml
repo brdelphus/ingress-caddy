@@ -6,7 +6,7 @@ fullnameOverride: ""
 
 image:
   repository: ghcr.io/brdelphus/caddy-custom
-  tag: 2.11.2
+  tag: "2.11.2"
   pullPolicy: IfNotPresent
 
 # ── Plugin toggles ─────────────────────────────────────────────────────────────
@@ -242,6 +242,28 @@ podAnnotations: {}
 # Reloader is only needed for cert rotation if using tls.existingSecret instead of CSI.
 reloader:
   enabled: true
+
+# ── Kubernetes Ingress controller ─────────────────────────────────────────────
+# Watches Ingress resources with ingressClassName: caddy-custom and dynamically
+# inserts routes into Caddy via the admin API. No more manual Caddyfile editing
+# for HTTP services — just set ingressClassName: caddy-custom in your charts.
+
+k8sIngress:
+  enabled: true
+  # IngressClass name — must match spec.ingressClassName in your Ingress resources
+  ingressClass: caddy-custom
+  # Set true to make this the cluster-wide default IngressClass
+  isDefaultClass: false
+  # Security middleware injected into every Ingress-generated route
+  security:
+    # WAF via Coraza (requires coraza-caddy in the build, which we have)
+    waf: false
+    # DetectionOnly = log only, On = block
+    wafMode: Detection
+    # HSTS, X-Content-Type-Options, X-Frame-Options, Referrer-Policy, remove Server
+    securityHeaders: true
+    # Inject X-Real-IP + X-Forwarded-* to upstream — required by Mailu / nginx backends
+    injectRealIP: true
 
 extraEnv: []
 extraVolumes: []
