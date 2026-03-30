@@ -124,9 +124,6 @@ tls:
   certManagerCSI:
     issuerName: letsencrypt-prod
     issuerKind: ClusterIssuer
-    dnsNames:
-      - "*.example.com"
-      - "example.com"
 
 realIP:
   trustedProxies:
