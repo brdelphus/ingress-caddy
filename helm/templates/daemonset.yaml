@@ -7,7 +7,9 @@ metadata:
   labels:
     {{- include "caddy.labels" . | nindent 4 }}
   annotations:
+    {{- if not .Values.configReloader.enabled }}
     {{- include "caddy.reloaderAnnotation" . | nindent 4 }}
+    {{- end }}
     {{- with .Values.podAnnotations }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
@@ -27,9 +29,11 @@ spec:
     metadata:
       labels:
         {{- include "caddy.selectorLabels" . | nindent 8 }}
+      {{- if not .Values.configReloader.enabled }}
       annotations:
-        # Force pod restart when Caddyfile changes (regardless of Reloader)
+        # Force pod restart when Caddyfile changes (only when configReloader is off)
         checksum/caddyfile: {{ include (print $.Template.BasePath "/configmap-caddyfile.yaml") . | sha256sum }}
+      {{- end }}
     spec:
       serviceAccountName: {{ include "caddy.serviceAccountName" . }}
       tolerations:

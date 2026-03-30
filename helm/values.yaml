@@ -359,13 +359,20 @@ resources:
 
 podAnnotations: {}
 
-# Stakater Reloader — triggers rolling restart on ConfigMap changes (routes, Caddyfile)
-# Install: helm install reloader stakater/reloader -n kube-system
-# Note: cert rotation does NOT need Reloader when using certManagerCSI — the CSI driver
-# updates real files and Caddy's fsnotify detects the change natively.
-# Reloader is only needed for cert rotation if using tls.existingSecret instead of CSI.
-reloader:
+# ── Built-in config reloader ────────────────────────────────────────────────────
+# The k8s_config_reloader Caddy module watches the Caddyfile ConfigMap and calls
+# POST /load on Caddy's admin API when it changes — hot reload, no pod restart.
+# This replaces Stakater Reloader entirely for Caddyfile config changes.
+configReloader:
   enabled: true
+  # configmap: ""   # defaults to <release>-caddyfile
+  # key: Caddyfile  # key inside ConfigMap.data
+  # adminAPI: ""    # defaults to localhost:2019
+
+# Stakater Reloader — kept for backwards compatibility, disabled when configReloader is on.
+# Install: helm install reloader stakater/reloader -n kube-system
+reloader:
+  enabled: false
 
 # ── Kubernetes Ingress controller ─────────────────────────────────────────────
 # Watches Ingress resources with ingressClassName: caddy-custom and dynamically

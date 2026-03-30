@@ -194,6 +194,19 @@ Generate the Caddyfile content
   }
   {{- end }}
 
+  {{- if .Values.configReloader.enabled }}
+
+  # ── Built-in config reloader ──────────────────────────────────────────────────
+  k8s_config_reloader {
+    namespace  {{ .Release.Namespace }}
+    configmap  {{ default (printf "%s-caddyfile" (include "caddy.fullname" .)) .Values.configReloader.configmap }}
+    key        {{ default "Caddyfile" .Values.configReloader.key }}
+    {{- if .Values.configReloader.adminAPI }}
+    admin_api  {{ .Values.configReloader.adminAPI }}
+    {{- end }}
+  }
+  {{- end }}
+
   {{- if .Values.caddyfile.extraGlobalOptions }}
 
   # ── Extra global options ──────────────────────────────────────────────────────
