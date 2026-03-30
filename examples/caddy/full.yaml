@@ -20,10 +20,29 @@ hostPorts:
   http: 80
   https: 443
 
+# ── TLS — choose one ──────────────────────────────────────────────────────────
+
+# Option A: cert-manager CSI
 tls:
   certManagerCSI:
+    enabled: true
     issuerName: letsencrypt-prod
     issuerKind: ClusterIssuer
+
+reloader:
+  enabled: true
+
+# Option B: CertMagic built-in ACME (no external dependencies)
+# tls:
+#   certManagerCSI:
+#     enabled: false
+#   acme:
+#     enabled: true
+#     email: admin@example.com
+#     challenge: http          # http | tls-alpn | dns
+#     storage: kubernetes      # no PVC needed
+
+# ── Real IP ───────────────────────────────────────────────────────────────────
 
 realIP:
   trustedProxies:
@@ -32,17 +51,26 @@ realIP:
   strict: true
   injectXRealIP: true
 
+# ── Security headers ──────────────────────────────────────────────────────────
+
 securityHeaders:
   enabled: true
   hsts:
     enabled: true
     maxAge: 31536000
     includeSubDomains: true
+    preload: false
+  xContentTypeOptions: true
+  xFrameOptions: SAMEORIGIN
+  referrerPolicy: strict-origin-when-cross-origin
+  removeServerHeader: true
+
+# ── Plugins ───────────────────────────────────────────────────────────────────
 
 plugins:
   coraza:
     enabled: true
-    ruleEngine: DetectionOnly
+    ruleEngine: DetectionOnly   # switch to On once tuned
 
   crowdsec:
     enabled: true
@@ -66,7 +94,9 @@ plugins:
 
   defender:
     enabled: true
-    action: block
+    action: block   # block | tarpit | garbage
+
+# ── Observability ─────────────────────────────────────────────────────────────
 
 metrics:
   enabled: true
@@ -75,5 +105,14 @@ metrics:
     namespace: monitoring
     interval: 30s
 
-reloader:
-  enabled: true
+tracing:
+  enabled: false
+  endpoint: otel-collector.monitoring.svc.cluster.local:4317
+
+# ── Extra global Caddyfile options ────────────────────────────────────────────
+# Uncomment to restrict TLS versions or override cipher suites.
+# caddyfile:
+#   extraGlobalOptions: |
+#     servers {
+#       protocols tls1.2 tls1.3
+#     }

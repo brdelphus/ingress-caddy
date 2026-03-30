@@ -33,10 +33,40 @@ service:
   # annotations:
   #   cloud.google.com/load-balancer-type: Internal
 
+# ── TLS — choose one ──────────────────────────────────────────────────────────
+
+# Option A: cert-manager CSI
 tls:
   certManagerCSI:
+    enabled: true
     issuerName: letsencrypt-prod
     issuerKind: ClusterIssuer
+
+reloader:
+  enabled: true
+
+# Option B: CertMagic built-in ACME
+# For multi-replica Deployments use redis storage so all pods share cert state.
+# tls:
+#   certManagerCSI:
+#     enabled: false
+#   acme:
+#     enabled: true
+#     email: admin@example.com
+#     challenge: http
+#     storage: redis   # shared across replicas via bundled Redis
+#
+# redis:
+#   enabled: true
+#   architecture: standalone
+#   auth:
+#     enabled: false
+#   master:
+#     persistence:
+#       enabled: true
+#       size: 1Gi
+
+# ── Real IP ───────────────────────────────────────────────────────────────────
 
 realIP:
   trustedProxies:

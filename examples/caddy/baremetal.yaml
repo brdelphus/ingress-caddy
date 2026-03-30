@@ -1,7 +1,6 @@
 # ── Bare-metal k3s — DaemonSet + hostPorts ────────────────────────────────────
 # Traffic arrives directly on each node's port 80/443. No load balancer needed.
-# Real client IP is preserved natively (no trusted_proxies adjustment required
-# beyond the pod CIDR for internal cluster traffic).
+# Real client IP is preserved natively.
 #
 # Usage:
 #   helm install caddy caddy-custom/caddy -n caddy --create-namespace -f baremetal.yaml
@@ -16,10 +15,32 @@ hostPorts:
   http: 80
   https: 443
 
+# ── TLS — choose one ──────────────────────────────────────────────────────────
+
+# Option A: cert-manager CSI
+# Certificates are provisioned by cert-manager and mounted as files.
+# Reloader triggers a rolling restart when the cert rotates.
 tls:
   certManagerCSI:
+    enabled: true
     issuerName: letsencrypt-prod
     issuerKind: ClusterIssuer
+
+reloader:
+  enabled: true
+
+# Option B: CertMagic built-in ACME (no external dependencies)
+# Caddy issues and renews certs automatically for every Ingress hostname.
+# tls:
+#   certManagerCSI:
+#     enabled: false
+#   acme:
+#     enabled: true
+#     email: admin@example.com
+#     challenge: http          # http | tls-alpn | dns
+#     storage: kubernetes      # certs stored as K8s Secrets — no PVC needed
+
+# ── Real IP ───────────────────────────────────────────────────────────────────
 
 realIP:
   trustedProxies:
