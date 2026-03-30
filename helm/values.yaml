@@ -250,6 +250,33 @@ tracing:
   endpoint: otel-collector.monitoring.svc.cluster.local:4317
   spanName: caddy
 
+# ── Extra global Caddyfile options ─────────────────────────────────────────────
+# Raw Caddyfile text injected verbatim into the global options block { }.
+# Use this to configure anything Caddy supports globally that the chart does not
+# expose as a structured value — cipher suites, TLS versions, curves, etc.
+#
+# Example — restrict to TLS 1.3 only with explicit cipher list:
+#
+#   caddyfile:
+#     extraGlobalOptions: |
+#       servers {
+#         listener_wrappers {
+#           tls
+#         }
+#       }
+#
+# Example — set cipher suites via Caddy's JSON snippet (most flexible):
+#
+#   caddyfile:
+#     extraGlobalOptions: |
+#       servers {
+#         default_sni example.com
+#       }
+#
+# See https://caddyserver.com/docs/caddyfile/options for all supported options.
+caddyfile:
+  extraGlobalOptions: ""
+
 # ── Admin API ──────────────────────────────────────────────────────────────────
 
 admin:

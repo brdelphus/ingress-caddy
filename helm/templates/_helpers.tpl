@@ -193,6 +193,12 @@ Generate the Caddyfile content
     {{- end }}
   }
   {{- end }}
+
+  {{- if .Values.caddyfile.extraGlobalOptions }}
+
+  # ── Extra global options ──────────────────────────────────────────────────────
+  {{ .Values.caddyfile.extraGlobalOptions | nindent 2 | trim }}
+  {{- end }}
 }
 
 # ── HTTP → HTTPS redirect ───────────────────────────────────────────────────────
