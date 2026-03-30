@@ -1,8 +1,12 @@
 # caddy-custom
 
-A production-ready [Caddy](https://caddyserver.com) image for Kubernetes, built to fully replace Traefik or nginx-ingress. Runs as a DaemonSet with hostPorts, handles TLS via cert-manager CSI, and ships with a Helm chart that makes every feature toggleable.
+A production-ready [Caddy](https://caddyserver.com) image for Kubernetes, built to fully replace Traefik or nginx-ingress. Handles TLS via cert-manager CSI, and ships with a Helm chart that makes every feature toggleable.
 
 Includes a built-in Kubernetes Ingress controller — apps set `ingressClassName: caddy-custom` and routes appear in Caddy automatically, no manual config editing required.
+
+Supports two deployment modes:
+- **DaemonSet + hostPorts** — runs on every node, binds ports directly. Ideal for bare-metal k3s.
+- **Deployment + LoadBalancer** — fixed replica count behind MetalLB or a cloud LB (AWS NLB, GCE, etc.).
 
 **Image:** `ghcr.io/brdelphus/caddy-custom`
 
@@ -27,13 +31,15 @@ All plugins are compiled into a single binary via [xcaddy](https://github.com/ca
 
 ## Architecture
 
+**Bare-metal / k3s (DaemonSet + hostPorts)**
+
 ```
                   ┌─────────────────────────────────┐
                   │         k3s cluster             │
                   │                                 │
 Internet ──80/443─▶  Caddy DaemonSet (hostPort)     │
-          ──L4────▶  (all nodes, including          │
-                  │   control-plane)                │
+          ──L4────▶  (all nodes, incl. control-     │
+                  │   plane via tolerations)        │
                   │         │                       │
                   │    ┌────▼─────────────────┐     │
                   │    │  Coraza WAF (OWASP)  │     │
@@ -49,6 +55,22 @@ Internet ──80/443─▶  Caddy DaemonSet (hostPort)     │
                   │    └────────────┬─────────┘     │
                   │                 │               │
                   │         backend services        │
+                  └─────────────────────────────────┘
+```
+
+**Cloud / MetalLB (Deployment + LoadBalancer)**
+
+```
+                  ┌─────────────────────────────────┐
+                  │         cluster                 │
+                  │                                 │
+Internet ──80/443─▶  LoadBalancer (MetalLB / cloud) │
+          ──L4────▶        │                        │
+                  │  Caddy Deployment (N replicas)  │
+                  │        │                        │
+                  │  [same WAF / Ingress pipeline]  │
+                  │        │                        │
+                  │   backend services              │
                   └─────────────────────────────────┘
 ```
 
@@ -71,12 +93,25 @@ helm install reloader stakater/reloader -n kube-system
 
 ### 2. Install
 
+From the Helm repo (recommended):
+
+```bash
+helm repo add caddy-custom https://brdelphus.github.io/caddy-custom
+helm repo update
+
+helm install caddy caddy-custom/caddy \
+  --namespace caddy \
+  --create-namespace \
+  --values values.local.yaml
+```
+
+Or from source:
+
 ```bash
 helm install caddy ./helm \
   --namespace caddy \
   --create-namespace \
-  --values helm/values.yaml \
-  --values helm/values.local.yaml   # your overrides (gitignored)
+  --values helm/values.local.yaml
 ```
 
 ### 3. Minimal `values.local.yaml`
@@ -116,6 +151,34 @@ Routes appear in Caddy within seconds — no restart, no manual Caddyfile editin
 ---
 
 ## Helm values reference
+
+### Workload type
+
+```yaml
+# Bare-metal k3s — runs on every node, binds ports directly on the host network
+workloadType: DaemonSet
+hostPorts:
+  enabled: true
+  http: 80
+  https: 443
+
+# Cloud / MetalLB — fixed replica Deployment behind a LoadBalancer Service
+workloadType: Deployment
+replicaCount: 2
+hostPorts:
+  enabled: false   # disable to avoid conflicts with the LB
+service:
+  enabled: true
+  type: LoadBalancer
+  loadBalancerIP: ""          # request a specific IP from your LB provider
+  externalTrafficPolicy: Local  # preserves real client IP, recommended
+  annotations: {}
+  # MetalLB:    metallb.universe.tf/address-pool: production
+  # AWS NLB:    service.beta.kubernetes.io/aws-load-balancer-type: nlb
+  # GCE LB:     cloud.google.com/load-balancer-type: Internal
+```
+
+L4 ports declared in `l4.hostPorts` are automatically added to the LoadBalancer Service — no duplication needed.
 
 ### Kubernetes Ingress controller
 
