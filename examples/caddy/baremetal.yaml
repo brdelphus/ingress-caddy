@@ -19,15 +19,16 @@ hostPorts:
 
 # Option A: cert-manager CSI
 # Certificates are provisioned by cert-manager and mounted as files.
-# Reloader triggers a rolling restart when the cert rotates.
+# Caddy detects rotation via fsnotify and reloads certs automatically — no restart needed.
+# Reloader is optional: only useful if you want rolling restarts on Caddyfile/config changes.
 tls:
   certManagerCSI:
     enabled: true
     issuerName: letsencrypt-prod
     issuerKind: ClusterIssuer
 
-reloader:
-  enabled: true
+# reloader:
+#   enabled: true   # optional — triggers restart on Helm value / ConfigMap changes
 
 # Option B: CertMagic built-in ACME (no external dependencies)
 # Caddy issues and renews certs automatically for every Ingress hostname.

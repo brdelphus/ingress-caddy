@@ -102,7 +102,13 @@ No hard dependencies — Caddy manages TLS natively via CertMagic.
 helm install cert-manager jetstack/cert-manager -n cert-manager --set crds.enabled=true
 # CSI driver mounts them as files into the pod
 helm install cert-manager-csi-driver jetstack/cert-manager-csi-driver -n cert-manager
-# Reloader triggers a rolling restart when the mounted cert files change
+```
+
+Caddy detects cert rotation via fsnotify and reloads certificates automatically — no restart needed.
+
+[Stakater Reloader](https://github.com/stakater/Reloader) is **optional** — only useful if you want pods to restart automatically when Helm values or ConfigMaps change:
+
+```bash
 helm install reloader stakater/reloader -n kube-system
 ```
 

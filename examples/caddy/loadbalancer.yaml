@@ -36,14 +36,16 @@ service:
 # ── TLS — choose one ──────────────────────────────────────────────────────────
 
 # Option A: cert-manager CSI
+# Caddy detects cert rotation via fsnotify — no restart needed.
+# Reloader is optional: only useful for rolling restarts on Caddyfile/config changes.
 tls:
   certManagerCSI:
     enabled: true
     issuerName: letsencrypt-prod
     issuerKind: ClusterIssuer
 
-reloader:
-  enabled: true
+# reloader:
+#   enabled: true   # optional — triggers restart on Helm value / ConfigMap changes
 
 # Option B: CertMagic built-in ACME
 # For multi-replica Deployments use redis storage so all pods share cert state.
