@@ -20,6 +20,9 @@ rules:
     resources: ["services", "endpoints"]
     verbs: ["get", "list", "watch"]
   - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get"]
+  - apiGroups: [""]
     resources: ["events"]
     verbs: ["create", "patch"]
 ---
