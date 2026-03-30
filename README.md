@@ -120,6 +120,10 @@ helm install caddy ./helm \
 ### 3. Minimal `values.local.yaml`
 
 ```yaml
+k8sIngress:
+  enabled: true
+  ingressClass: caddy-custom   # set spec.ingressClassName: caddy-custom in your apps
+
 tls:
   certManagerCSI:
     issuerName: letsencrypt-prod
