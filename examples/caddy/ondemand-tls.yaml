@@ -1,0 +1,83 @@
+# ── On-Demand TLS with CertMagic ──────────────────────────────────────────────
+# Issue certificates dynamically on first request. No need to pre-list domains
+# or use wildcards — Caddy obtains a cert when a client connects.
+#
+# Usage:
+#   helm install caddy caddy-custom/caddy -n caddy --create-namespace \
+#     -f baremetal.yaml -f ondemand-tls.yaml
+#
+# WARNING: Always set 'ask' URL in production to prevent certificate abuse!
+# Without validation, anyone could trigger cert issuance for any domain.
+
+tls:
+  certManagerCSI:
+    enabled: false
+
+  acme:
+    enabled: true
+    email: admin@example.com
+    # Use staging CA for testing to avoid rate limits
+    # ca: "https://acme-staging-v02.api.letsencrypt.org/directory"
+
+    # Challenge type - HTTP-01 is default, DNS-01 for private clusters
+    challenge: http
+
+    # Store certs in K8s Secrets - no PVC needed
+    storage: kubernetes
+
+    # ── On-Demand TLS ─────────────────────────────────────────────────────────
+    onDemand:
+      enabled: true
+
+      # IMPORTANT: Validation URL - must return 200 OK to allow cert issuance.
+      # Deploy a simple validator service that checks if the domain is allowed.
+      # Without this, on-demand TLS is unrestricted and dangerous!
+      #
+      # Example validator service:
+      #   - Check domain against allowlist
+      #   - Verify domain DNS points to your cluster
+      #   - Check domain exists in your database
+      ask: "http://domain-validator.caddy.svc.cluster.local/check"
+
+      # Rate limits to prevent abuse
+      rateLimit:
+        burst: 5          # Max certs to issue in the interval
+        interval: 2m      # Time window
+
+# ── Example: Domain validator service ─────────────────────────────────────────
+# Deploy a simple service that validates domains before cert issuance.
+#
+# apiVersion: v1
+# kind: Service
+# metadata:
+#   name: domain-validator
+#   namespace: caddy
+# spec:
+#   selector:
+#     app: domain-validator
+#   ports:
+#     - port: 80
+#       targetPort: 8080
+# ---
+# apiVersion: apps/v1
+# kind: Deployment
+# metadata:
+#   name: domain-validator
+#   namespace: caddy
+# spec:
+#   replicas: 1
+#   selector:
+#     matchLabels:
+#       app: domain-validator
+#   template:
+#     metadata:
+#       labels:
+#         app: domain-validator
+#     spec:
+#       containers:
+#         - name: validator
+#           image: nginx:alpine
+#           ports:
+#             - containerPort: 8080
+#           # Simple nginx config that returns 200 for allowed domains
+#           # In production, use a real service with database lookup

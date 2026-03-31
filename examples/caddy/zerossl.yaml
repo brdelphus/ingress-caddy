@@ -1,0 +1,68 @@
+# ── ZeroSSL with External Account Binding (EAB) ───────────────────────────────
+# Use ZeroSSL as your ACME CA instead of Let's Encrypt.
+# ZeroSSL offers 90-day certs with no rate limits and REST API access.
+#
+# Usage:
+#   helm install caddy caddy-custom/caddy -n caddy --create-namespace \
+#     -f baremetal.yaml -f zerossl.yaml
+#
+# Prerequisites:
+#   1. Create ZeroSSL account: https://app.zerossl.com/signup
+#   2. Generate EAB credentials: https://app.zerossl.com/developer
+#   3. Create K8s secret:
+#      kubectl create secret generic acme-eab-creds \
+#        --from-literal=ACME_EAB_KEY_ID=your-key-id \
+#        --from-literal=ACME_EAB_MAC_KEY=your-mac-key \
+#        -n caddy
+#
+# Also works with:
+#   - Sectigo: https://www.sectigo.com/
+#   - Google Trust Services: https://pki.goog/
+#   - DigiCert: https://www.digicert.com/
+#   - Any CA supporting ACME with EAB
+
+tls:
+  certManagerCSI:
+    enabled: false
+
+  acme:
+    enabled: true
+    email: admin@example.com
+
+    # ZeroSSL ACME directory
+    ca: "https://acme.zerossl.com/v2/DV90"
+
+    # External Account Binding credentials
+    eab:
+      keyId: "{env.ACME_EAB_KEY_ID}"
+      macKey: "{env.ACME_EAB_MAC_KEY}"
+
+    # Challenge type
+    challenge: http    # or dns for wildcards
+
+    # Store certs in K8s Secrets
+    storage: kubernetes
+
+# Mount the EAB credentials secret
+extraEnv:
+  - name: ACME_EAB_KEY_ID
+    valueFrom:
+      secretKeyRef:
+        name: acme-eab-creds
+        key: ACME_EAB_KEY_ID
+  - name: ACME_EAB_MAC_KEY
+    valueFrom:
+      secretKeyRef:
+        name: acme-eab-creds
+        key: ACME_EAB_MAC_KEY
+
+# ── Alternative CAs ───────────────────────────────────────────────────────────
+#
+# Google Trust Services:
+#   ca: "https://dv.acme-v02.api.pki.goog/directory"
+#
+# Buypass (no EAB needed):
+#   ca: "https://api.buypass.com/acme/directory"
+#
+# SSL.com:
+#   ca: "https://acme.ssl.com/sslcom-dv-rsa"
