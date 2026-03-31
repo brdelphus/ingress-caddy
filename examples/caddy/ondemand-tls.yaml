@@ -2,10 +2,23 @@
 # Issue certificates dynamically on first request. Caddy obtains a cert when a
 # client connects to a hostname — no need to pre-create Certificate resources.
 #
+# Two ways to use on-demand TLS:
+#
+# A) Global default (this file) — all certmagic Ingresses use on-demand issuance.
+#    Rate limits and ask URL are configured here and apply to all routes.
+#
+# B) Per-Ingress annotation — enable on-demand for specific Ingresses only:
+#
+#    annotations:
+#      caddy.ingress/tls: certmagic
+#      caddy.ingress/tls-ondemand: "true"
+#
+#    The global ask URL and rate limits (configured below) still apply.
+#
 # Ingresses must have spec.tls to be routed to the HTTPS server (port 443).
 # Leave secretName empty — CertMagic issues the cert on first connection.
 #
-# Usage:
+# Usage (global):
 #   helm install caddy caddy-custom/caddy -n caddy --create-namespace \
 #     -f examples/caddy/baremetal.yaml \
 #     -f examples/caddy/ondemand-tls.yaml

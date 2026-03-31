@@ -2,18 +2,36 @@
 # Use ZeroSSL as your ACME CA instead of Let's Encrypt.
 # ZeroSSL offers 90-day certs with no rate limits and REST API access.
 #
+# Two ways to use ZeroSSL:
+#
+# A) Global default (this file) — all certmagic Ingresses use ZeroSSL.
+#    Set tls.acme.ca here; EAB creds go in a Secret in the caddy namespace.
+#
+# B) Per-Ingress annotation — use ZeroSSL for specific Ingresses only while
+#    others use the global default CA. EAB Secret lives in the Ingress namespace:
+#
+#    kubectl create secret generic acme-eab-creds \
+#      --from-literal=key_id=your-key-id \
+#      --from-literal=mac_key=your-mac-key \
+#      -n myapp
+#
+#    annotations:
+#      caddy.ingress/tls: certmagic
+#      caddy.ingress/tls-ca: "https://acme.zerossl.com/v2/DV90"
+#      caddy.ingress/tls-ca-secret: acme-eab-creds
+#
 # Ingresses must have spec.tls to be routed to the HTTPS server (port 443).
 # Leave secretName empty — CertMagic issues the cert via ZeroSSL on first use.
 #
-# Usage:
+# Usage (global):
 #   helm install caddy caddy-custom/caddy -n caddy --create-namespace \
 #     -f examples/caddy/baremetal.yaml \
 #     -f examples/caddy/zerossl.yaml
 #
-# Prerequisites:
+# Prerequisites for global mode:
 #   1. Create ZeroSSL account: https://app.zerossl.com/signup
 #   2. Generate EAB credentials: https://app.zerossl.com/developer
-#   3. Create K8s secret:
+#   3. Create K8s secret in the caddy namespace:
 #      kubectl create secret generic acme-eab-creds \
 #        --from-literal=ACME_EAB_KEY_ID=your-key-id \
 #        --from-literal=ACME_EAB_MAC_KEY=your-mac-key \
