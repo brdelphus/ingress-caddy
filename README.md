@@ -5,9 +5,7 @@
 
 A custom [Caddy](https://caddyserver.com) image for Kubernetes, built to replace Traefik or nginx-ingress. Ships with a Helm chart that makes every feature toggleable.
 
-TLS is handled by your choice of backend:
-- **CertMagic** (built-in) — Caddy issues and renews certificates automatically via ACME (HTTP-01, TLS-ALPN-01, or DNS-01). Certs stored in Kubernetes Secrets, Redis, or on disk. No external dependencies.
-- **cert-manager CSI** — certificates are provisioned by cert-manager and mounted as files. Caddy detects rotation via fsnotify with no restart needed.
+TLS is opt-in per Ingress: add `spec.tls` with a `secretName` and the module loads the certificate from the Kubernetes Secret automatically. Ingresses without `spec.tls` are HTTP only.
 
 Includes a built-in Kubernetes Ingress controller — apps set `ingressClassName: caddy-custom` and routes appear in Caddy automatically, no manual config editing required.
 
@@ -86,7 +84,7 @@ Internet ──80/443─▶  LoadBalancer (MetalLB / cloud) │
                   └─────────────────────────────────┘
 ```
 
-TLS is handled by CertMagic (built-in ACME, certs stored in Kubernetes Secrets or Redis) or [cert-manager CSI](https://cert-manager.io/docs/usage/csi-driver/) (certs mounted as files, rotation detected via fsnotify). See the [TLS section](#tls) for full options.
+TLS is opt-in per Ingress via `spec.tls` — the caddy-k8s module loads certificates from Kubernetes Secrets and watches them for renewals. See the [TLS section](#tls) for details.
 
 ---
 
@@ -94,18 +92,13 @@ TLS is handled by CertMagic (built-in ACME, certs stored in Kubernetes Secrets o
 
 ### 1. Prerequisites
 
-No hard dependencies — Caddy manages TLS natively via CertMagic.
-
-**Only needed when using `tls.certManagerCSI`:**
+No hard dependencies. TLS certificates are loaded per-Ingress from Kubernetes Secrets — create them manually or use cert-manager to issue and renew them automatically:
 
 ```bash
-# cert-manager issues the certificates
 helm install cert-manager jetstack/cert-manager -n cert-manager --set crds.enabled=true
-# CSI driver mounts them as files into the pod
-helm install cert-manager-csi-driver jetstack/cert-manager-csi-driver -n cert-manager
 ```
 
-Caddy detects cert rotation via fsnotify and reloads certificates automatically — no restart needed.
+cert-manager stores issued certificates in Secrets. Point `spec.tls[].secretName` in your Ingress to the same Secret name and caddy-k8s will pick it up. Renewals are applied automatically without a restart.
 
 **Config hot-reload is built in.** The `k8s_config_reloader` module (enabled by default) watches the Caddyfile ConfigMap and calls Caddy's admin API when it changes — no pod restart ever needed, not even for Helm upgrades that modify the Caddyfile.
 
@@ -138,17 +131,10 @@ helm install caddy ./helm \
 
 ### 3. Minimal `values.local.yaml`
 
-With cert-manager CSI:
-
 ```yaml
 k8sIngress:
   enabled: true
   ingressClass: caddy-custom
-
-tls:
-  certManagerCSI:
-    issuerName: letsencrypt-prod
-    issuerKind: ClusterIssuer
 
 realIP:
   trustedProxies:
@@ -156,32 +142,7 @@ realIP:
     - 127.0.0.1/32
 ```
 
-With CertMagic built-in ACME (no cert-manager needed):
-
-```yaml
-k8sIngress:
-  enabled: true
-  ingressClass: caddy-custom
-
-tls:
-  certManagerCSI:
-    enabled: false
-  acme:
-    enabled: true
-    email: admin@example.com
-    challenge: dns
-    storage: kubernetes      # certs stored as K8s Secrets, no PVC needed
-    dns:
-      provider: cloudflare
-      config: |
-        api_token {env.CF_API_TOKEN}
-      credentialsSecret: caddy-dns-creds
-
-realIP:
-  trustedProxies:
-    - 10.42.0.0/16
-    - 127.0.0.1/32
-```
+TLS is configured per Ingress via `spec.tls` — no global TLS backend needed. See the [TLS section](#tls) for details.
 
 ### 4. Point your apps at Caddy
 
@@ -200,9 +161,7 @@ ingress:
 
 Routes appear in Caddy within seconds — no restart, no manual Caddyfile editing.
 
-**HTTPS is automatic.** There is no need to set `spec.tls` on Ingress resources. TLS is handled globally:
-- With CertMagic, Caddy auto-issues and renews a certificate for every hostname it sees in Ingress rules.
-- With cert-manager CSI, a wildcard certificate is mounted into the pod and covers all hostnames.
+**TLS is opt-in per Ingress.** Add a `spec.tls` block with a `secretName` to enable HTTPS for that Ingress — the caddy-k8s module loads the certificate from the Kubernetes Secret and pushes it to Caddy. Ingresses without `spec.tls` are served over HTTP only.
 
 Per-route behaviour (redirects, auth, CORS, rate limiting, etc.) is controlled via annotations — see the [annotation reference](#kubernetes-ingress-controller).
 
@@ -508,135 +467,34 @@ l4:
 
 ### TLS
 
-Three mutually exclusive backends — enable exactly one.
-
-**Option 1 — cert-manager CSI** (external dependency):
+TLS is configured per Ingress via `spec.tls`. Add a `spec.tls` block referencing a `kubernetes.io/tls` Secret and the caddy-k8s module loads the certificate into Caddy automatically. The secret is watched — renewals are applied without a restart. Ingresses without `spec.tls` are served over HTTP only.
 
 ```yaml
-tls:
-  certManagerCSI:
-    enabled: true
-    issuerName: letsencrypt-prod
-    issuerKind: ClusterIssuer
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: myapp
+  namespace: myapp
+spec:
+  ingressClassName: caddy-custom
+  tls:
+    - hosts:
+        - app.example.com
+      secretName: myapp-tls   # must be type kubernetes.io/tls
+  rules:
+    - host: app.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: myapp
+                port:
+                  number: 8080
 ```
 
-Requires cert-manager + cert-manager-csi-driver. Certificates are mounted as real files; Caddy's fsnotify handles rotation automatically.
-
-**Option 2 — CertMagic built-in ACME** (no external dependency):
-
-Caddy handles issuance and renewal automatically. Domains are discovered from Ingress resources as apps are deployed — no need to pre-list them.
-
-Three challenge types:
-
-```yaml
-tls:
-  certManagerCSI:
-    enabled: false
-  acme:
-    enabled: true
-    email: admin@example.com
-    ca: ""   # empty = Let's Encrypt production; set staging URL for testing
-
-    # HTTP-01 — default, no extra config needed, port 80 must be reachable
-    challenge: http
-
-    # TLS-ALPN-01 — port 443, no extra config needed, useful when port 80 is blocked
-    challenge: tls-alpn
-
-    # DNS-01 — required for wildcards and private clusters not reachable from internet
-    # The DNS provider module must be compiled into the image (DNS_PROVIDER build arg)
-    # See https://github.com/caddy-dns for available providers
-    challenge: dns
-    dns:
-      provider: cloudflare           # provider module name
-      config: |
-        api_token {env.CF_API_TOKEN} # raw Caddyfile block, use {env.X} for secrets
-      credentialsSecret: caddy-dns-creds  # all keys exposed as env vars to Caddy
-```
-
-Three storage backends for issued certificates:
-
-```yaml
-    # filesystem — default, /data/caddy/ inside the pod
-    # Requires persistence.enabled to survive restarts and avoid rate limits
-    storage: filesystem
-
-    # kubernetes — stores certs as Kubernetes Secrets in the release namespace
-    # No PVC needed; certs survive restarts naturally
-    # RBAC is automatically extended to allow secret create/update/delete
-    storage: kubernetes
-
-    # redis — uses bundled Redis when redis.enabled: true
-    # Best for multi-replica Deployments sharing cert state across pods
-    storage: redis
-```
-
-**On-Demand TLS** — issue certificates dynamically on first request:
-
-```yaml
-tls:
-  acme:
-    enabled: true
-    email: admin@example.com
-    onDemand:
-      enabled: true
-      # IMPORTANT: Set 'ask' URL in production to prevent abuse
-      ask: "http://validator.internal/check?domain={host}"
-      rateLimit:
-        burst: 5
-        interval: 2m
-```
-
-**External Account Binding (EAB)** — required for ZeroSSL, Sectigo, Google Trust Services:
-
-```yaml
-tls:
-  acme:
-    enabled: true
-    ca: "https://acme.zerossl.com/v2/DV90"
-    eab:
-      keyId: "{env.ACME_EAB_KEY_ID}"
-      macKey: "{env.ACME_EAB_MAC_KEY}"
-```
-
-**OCSP Stapling interval** — control how often to check certificate revocation:
-
-```yaml
-tls:
-  acme:
-    ocspCheckInterval: "1h"   # default, set to "0" to disable
-```
-
-Persistence (only needed with `storage: filesystem`):
-
-```yaml
-persistence:
-  enabled: true
-  hostPath: /var/lib/caddy   # recommended for DaemonSet
-  # storageClass: longhorn   # for Deployment mode with dynamic provisioning
-```
-
-**Option 3 — existing TLS secret**:
-
-```yaml
-tls:
-  certManagerCSI:
-    enabled: false
-  existingSecret: my-tls-secret
-```
-
-**Building with a DNS provider**
-
-To use DNS-01 challenge, build the image with the `DNS_PROVIDER` build arg:
-
-```bash
-docker build \
-  --build-arg DNS_PROVIDER=github.com/caddy-dns/cloudflare \
-  -t ghcr.io/brdelphus/caddy-custom:latest \
-  docker/
-```
-
-Any provider from [github.com/caddy-dns](https://github.com/caddy-dns) works, as well as community modules (e.g. `github.com/simonvandermeer/caddy-technitium-dns-module`).
+Secrets can be created manually or managed by cert-manager — just point `spec.secretName` in the cert-manager `Certificate` resource to the same name.
 
 ### Forward auth (Authelia / authentik)
 
