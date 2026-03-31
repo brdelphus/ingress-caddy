@@ -16,6 +16,15 @@ spec:
   loadBalancerIP: {{ .Values.service.loadBalancerIP }}
   {{- end }}
   externalTrafficPolicy: {{ .Values.service.externalTrafficPolicy }}
+  {{- if .Values.service.ipDualStack.enabled }}
+  {{- if .Values.service.ipDualStack.ipFamilies }}
+  ipFamilies:
+    {{- toYaml .Values.service.ipDualStack.ipFamilies | nindent 4 }}
+  {{- end }}
+  {{- if .Values.service.ipDualStack.ipFamilyPolicy }}
+  ipFamilyPolicy: {{ .Values.service.ipDualStack.ipFamilyPolicy }}
+  {{- end }}
+  {{- end }}
   selector:
     {{- include "caddy.selectorLabels" . | nindent 4 }}
   ports:

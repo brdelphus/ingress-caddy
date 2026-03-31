@@ -72,6 +72,108 @@ plugins:
     enabled: false
     action: block               # block | tarpit | garbage
 
+  # Authentication, Authorization, and Accounting (greenpau/caddy-security)
+  # Implements OAuth2, OIDC, SAML, LDAP, local auth with MFA support.
+  # Docs: https://docs.authcrunch.com
+  security:
+    enabled: false
+
+    # ── Identity Providers ────────────────────────────────────────────────────────
+    # Configure one or more OAuth2/OIDC identity providers.
+    # Each provider needs: name, driver, client_id, client_secret, scopes
+    identityProviders: []
+    # - name: google
+    #   driver: google
+    #   realm: google
+    #   clientId: ""                    # or use {env.GOOGLE_CLIENT_ID}
+    #   clientSecret: ""                # or use {env.GOOGLE_CLIENT_SECRET}
+    #   scopes:
+    #     - openid
+    #     - email
+    #     - profile
+    #
+    # - name: github
+    #   driver: github
+    #   realm: github
+    #   clientId: ""
+    #   clientSecret: ""
+    #   scopes:
+    #     - user
+    #
+    # - name: generic                   # Generic OIDC (Keycloak, Authentik, etc.)
+    #   driver: generic
+    #   realm: generic
+    #   clientId: ""
+    #   clientSecret: ""
+    #   scopes:
+    #     - openid
+    #     - email
+    #     - profile
+    #   # Required for generic OIDC:
+    #   metadataUrl: ""                 # https://keycloak.example.com/realms/master/.well-known/openid-configuration
+    #   # Or specify endpoints manually:
+    #   # baseAuthUrl: ""
+    #   # tokenUrl: ""
+    #   # userInfoUrl: ""
+
+    # ── Authentication Portal ─────────────────────────────────────────────────────
+    # The portal handles login UI and token issuance.
+    portal:
+      name: myportal
+      # Token lifetime in seconds (default: 24 hours)
+      tokenLifetime: 86400
+      # Cookie settings
+      cookie:
+        domain: ""                      # e.g. example.com (for cross-subdomain SSO)
+        insecure: false                 # set true only for local dev (HTTP)
+        sameSite: lax                   # strict | lax | none
+      # Crypto key for signing tokens — MUST be set in production
+      # Use {env.JWT_SHARED_KEY} to reference from secret
+      cryptoKey: ""
+      # Which identity providers to enable in the portal
+      enableProviders: []               # e.g. ["google", "github", "generic"]
+
+    # ── User Transforms ───────────────────────────────────────────────────────────
+    # Map users from identity providers to roles.
+    # By default, users get "authp/guest" role unless transformed.
+    transforms: []
+    # - match:
+    #     realm: google
+    #     email: admin@example.com
+    #   action: add role authp/admin
+    #
+    # - match:
+    #     realm: google
+    #   action: add role authp/user
+    #
+    # - match:
+    #     realm: github
+    #     org: myorg
+    #   action: add role authp/user
+
+    # ── Authorization Policies ────────────────────────────────────────────────────
+    # Define policies that can be applied to routes.
+    policies: []
+    # - name: admins-only
+    #   authUrl: /auth/oauth2/google    # redirect unauthorized users here
+    #   allowRoles:
+    #     - authp/admin
+    #   injectHeaders: true             # inject user claims as headers
+    #   validateBearer: false           # validate Authorization: Bearer tokens
+    #
+    # - name: users
+    #   authUrl: /auth/oauth2/google
+    #   allowRoles:
+    #     - authp/admin
+    #     - authp/user
+    #   injectHeaders: true
+
+    # ── Secrets ───────────────────────────────────────────────────────────────────
+    # Reference a K8s secret containing OAuth credentials as env vars.
+    # Keys in the secret become available as {env.KEY_NAME} in the config.
+    # Example secret keys: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, JWT_SHARED_KEY
+    credentialsSecret: ""
+
 # ── TCP/UDP Layer 4 routing (mholt/caddy-l4) ──────────────────────────────────
 
 l4:
@@ -155,7 +257,37 @@ tls:
     challenge: http
     # Storage backend: filesystem | kubernetes | redis
     storage: filesystem
-    # DNS-01 config — only used when challenge: dns
+
+    # ── On-Demand TLS ───────────────────────────────────────────────────────────
+    # Issue certificates dynamically on first request. No need to pre-list domains
+    # or use wildcards. Caddy obtains a cert when a client connects.
+    # WARNING: Enable 'ask' URL in production to prevent abuse!
+    onDemand:
+      enabled: false
+      # URL to query before issuing a cert. Must return 200 OK to allow.
+      # Example: http://validator.internal/check?domain={host}
+      # If empty, on-demand TLS is unrestricted (dangerous in production).
+      ask: ""
+      # Rate limits for on-demand certificate issuance
+      rateLimit:
+        # Max certificates to issue in the interval
+        burst: 5
+        # Time window for rate limiting (e.g. 1m, 1h)
+        interval: 2m
+
+    # ── External Account Binding (EAB) ──────────────────────────────────────────
+    # Required for some ACME CAs: ZeroSSL, Sectigo, Google Trust Services, etc.
+    # Get credentials from your CA's dashboard.
+    eab:
+      keyId: ""                       # e.g. "abc123" or {env.ACME_EAB_KEY_ID}
+      macKey: ""                      # e.g. "secret" or {env.ACME_EAB_MAC_KEY}
+
+    # ── OCSP Stapling ───────────────────────────────────────────────────────────
+    # How often to check OCSP responders for certificate revocation status.
+    # Default: 1h. Set to 0 to disable OCSP stapling checks.
+    ocspCheckInterval: ""             # e.g. "1h", "30m"
+
+    # ── DNS-01 config — only used when challenge: dns ───────────────────────────
     dns:
       # Provider name as registered in the Caddy module (e.g. cloudflare, rfc2136)
       provider: ""
@@ -304,6 +436,16 @@ service:
   # Local = real client IP preserved + LB only routes to nodes running a pod
   # Cluster = client IP is lost (replaced by node IP) but traffic is spread across all nodes
   externalTrafficPolicy: Local
+
+  # ── IP Dual Stack ─────────────────────────────────────────────────────────────
+  # Enable IPv4 + IPv6 dual-stack support (requires K8s 1.23+ with dual-stack enabled)
+  ipDualStack:
+    enabled: false
+    # IP families to use: IPv4, IPv6, or both
+    ipFamilies: []              # e.g. ["IPv4", "IPv6"]
+    # Policy: SingleStack, PreferDualStack, or RequireDualStack
+    ipFamilyPolicy: ""          # e.g. "PreferDualStack"
+
   annotations: {}
     # MetalLB address pool:
     # metallb.universe.tf/address-pool: production
@@ -359,6 +501,16 @@ resources:
 
 podAnnotations: {}
 
+# ── Pod Disruption Budget ────────────────────────────────────────────────────────
+# Ensures a minimum number of pods remain available during voluntary disruptions
+# (node drains, cluster upgrades, etc.). Recommended for production.
+podDisruptionBudget:
+  enabled: false
+  # Minimum pods that must remain available (absolute number or percentage)
+  minAvailable: 1
+  # Maximum pods that can be unavailable (alternative to minAvailable)
+  # maxUnavailable: 1
+
 # ── Built-in config reloader ────────────────────────────────────────────────────
 # The k8s_config_reloader Caddy module watches the Caddyfile ConfigMap and calls
 # POST /load on Caddy's admin API when it changes — hot reload, no pod restart.
@@ -385,6 +537,13 @@ k8sIngress:
   ingressClass: caddy-custom
   # Set true to make this the cluster-wide default IngressClass
   isDefaultClass: false
+
+  # ── Namespace filtering ─────────────────────────────────────────────────────────
+  # Watch Ingress resources only in specific namespace(s).
+  # Empty string = watch all namespaces (default).
+  # Useful for multi-tenant clusters or when running multiple Caddy instances.
+  watchNamespace: ""
+
   # Security middleware injected into every Ingress-generated route
   security:
     # WAF via Coraza (requires coraza-caddy in the build, which we have)

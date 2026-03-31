@@ -32,6 +32,7 @@ Created after migrating from ingress-nginx (deprecated) to Traefik, finding Trae
 | [caddy-maxmind-geolocation](https://github.com/porech/caddy-maxmind-geolocation) | [Massimiliano Porrini](https://github.com/porech) | GeoIP country-level blocking |
 | [caddy-crowdsec-bouncer](https://github.com/hslatman/caddy-crowdsec-bouncer) | [Herman Slatman](https://github.com/hslatman) | CrowdSec IP reputation + AppSec |
 | [caddy-defender](https://github.com/jasonlovesdoggo/caddy-defender) | [Jason Cameron](https://github.com/jasonlovesdoggo) | AI scraper / cloud datacenter IP blocker |
+| [caddy-security](https://github.com/greenpau/caddy-security) | [Paul Greenberg](https://github.com/greenpau) | Authentication (OAuth2/OIDC/SAML/LDAP) + Authorization |
 | [caddy-k8s](https://github.com/brdelphus/caddy-k8s) | [brdelphus](https://github.com/brdelphus) | Kubernetes Ingress controller |
 | [caddy-kubernetes-storage](https://github.com/brdelphus/caddy-kubernetes-storage) | [brdelphus](https://github.com/brdelphus) | TLS storage backend using Kubernetes Secrets |
 | [caddy-storage-redis](https://github.com/pberkel/caddy-storage-redis) | [Peter Berkel](https://github.com/pberkel) | TLS storage backend using Redis |
@@ -390,6 +391,87 @@ plugins:
     action: block   # block | tarpit | garbage
 ```
 
+### Authentication & SSO (caddy-security)
+
+Built-in authentication portal supporting OAuth2, OIDC, SAML, LDAP with MFA. Replaces the need for Authelia/OAuth2-proxy for simple SSO use cases.
+
+```yaml
+plugins:
+  security:
+    enabled: true
+
+    # Identity providers — configure one or more
+    identityProviders:
+      - name: google
+        driver: google
+        realm: google
+        clientId: "{env.GOOGLE_CLIENT_ID}"
+        clientSecret: "{env.GOOGLE_CLIENT_SECRET}"
+        scopes: [openid, email, profile]
+
+      - name: keycloak                    # Generic OIDC (Keycloak, Authentik, etc.)
+        driver: generic
+        realm: keycloak
+        clientId: "{env.KEYCLOAK_CLIENT_ID}"
+        clientSecret: "{env.KEYCLOAK_CLIENT_SECRET}"
+        scopes: [openid, email, profile]
+        metadataUrl: "https://keycloak.example.com/realms/master/.well-known/openid-configuration"
+
+    # Authentication portal settings
+    portal:
+      name: myportal
+      tokenLifetime: 86400               # 24 hours
+      cryptoKey: "{env.JWT_SHARED_KEY}"  # MUST set in production
+      enableProviders: [google, keycloak]
+      cookie:
+        domain: example.com              # for cross-subdomain SSO
+        insecure: false
+        sameSite: lax
+
+    # Map users to roles based on identity provider claims
+    transforms:
+      - match:
+          realm: google
+          email: admin@example.com
+        action: add role authp/admin
+      - match:
+          realm: google
+        action: add role authp/user
+
+    # Authorization policies — apply to routes
+    policies:
+      - name: users
+        authUrl: /auth/oauth2/google
+        allowRoles: [authp/admin, authp/user]
+        injectHeaders: true
+
+    # Secret containing OAuth credentials as env vars
+    credentialsSecret: caddy-security-creds
+```
+
+Create the credentials secret:
+
+```bash
+kubectl create secret generic caddy-security-creds \
+  --from-literal=GOOGLE_CLIENT_ID=xxx \
+  --from-literal=GOOGLE_CLIENT_SECRET=xxx \
+  --from-literal=JWT_SHARED_KEY=$(openssl rand -hex 32) \
+  -n caddy
+```
+
+To protect a route, import the authorization policy in your route file:
+
+```caddyfile
+app.example.com {
+  import authorize-users
+  reverse_proxy app.default.svc.cluster.local:8080
+}
+```
+
+The authentication portal is served at `/auth/*` and handles OAuth callbacks automatically.
+
+Documentation: [docs.authcrunch.com](https://docs.authcrunch.com)
+
 ### Layer 4 TCP/UDP routing
 
 For protocols that can't go through HTTP (SMTP, IMAP, DNS, game servers, etc.):
@@ -489,6 +571,42 @@ Three storage backends for issued certificates:
     storage: redis
 ```
 
+**On-Demand TLS** — issue certificates dynamically on first request:
+
+```yaml
+tls:
+  acme:
+    enabled: true
+    email: admin@example.com
+    onDemand:
+      enabled: true
+      # IMPORTANT: Set 'ask' URL in production to prevent abuse
+      ask: "http://validator.internal/check?domain={host}"
+      rateLimit:
+        burst: 5
+        interval: 2m
+```
+
+**External Account Binding (EAB)** — required for ZeroSSL, Sectigo, Google Trust Services:
+
+```yaml
+tls:
+  acme:
+    enabled: true
+    ca: "https://acme.zerossl.com/v2/DV90"
+    eab:
+      keyId: "{env.ACME_EAB_KEY_ID}"
+      macKey: "{env.ACME_EAB_MAC_KEY}"
+```
+
+**OCSP Stapling interval** — control how often to check certificate revocation:
+
+```yaml
+tls:
+  acme:
+    ocspCheckInterval: "1h"   # default, set to "0" to disable
+```
+
 Persistence (only needed with `storage: filesystem`):
 
 ```yaml
@@ -548,6 +666,42 @@ metrics:
 tracing:
   enabled: true
   endpoint: otel-collector.monitoring.svc.cluster.local:4317
+```
+
+### Namespace filtering
+
+Watch Ingress resources only in specific namespace(s) — useful for multi-tenant clusters:
+
+```yaml
+k8sIngress:
+  enabled: true
+  watchNamespace: "production"   # empty = watch all namespaces (default)
+```
+
+### Pod Disruption Budget
+
+Ensures minimum availability during voluntary disruptions (node drains, upgrades):
+
+```yaml
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1        # or use maxUnavailable: 1
+```
+
+### IP Dual Stack (IPv4 + IPv6)
+
+Enable dual-stack support for the LoadBalancer service (requires K8s 1.23+):
+
+```yaml
+service:
+  enabled: true
+  type: LoadBalancer
+  ipDualStack:
+    enabled: true
+    ipFamilies:
+      - IPv4
+      - IPv6
+    ipFamilyPolicy: PreferDualStack   # or RequireDualStack
 ```
 
 ---

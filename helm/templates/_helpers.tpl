@@ -95,6 +95,13 @@ Generate the Caddyfile content
   acme_ca {{ .Values.tls.acme.ca }}
   {{- end }}
 
+  {{- if and .Values.tls.acme.eab.keyId .Values.tls.acme.eab.macKey }}
+  acme_eab {
+    key_id  {{ .Values.tls.acme.eab.keyId }}
+    mac_key {{ .Values.tls.acme.eab.macKey }}
+  }
+  {{- end }}
+
   {{- if eq .Values.tls.acme.challenge "dns" }}
   acme_dns {{ .Values.tls.acme.dns.provider }} {
     {{ .Values.tls.acme.dns.config | nindent 4 | trim }}
@@ -105,6 +112,22 @@ Generate the Caddyfile content
   }
   {{- end }}
   {{- /* http challenge is Caddy's default — no explicit config needed */}}
+
+  {{- if .Values.tls.acme.onDemand.enabled }}
+  on_demand_tls {
+    {{- if .Values.tls.acme.onDemand.ask }}
+    ask {{ .Values.tls.acme.onDemand.ask }}
+    {{- end }}
+    {{- if and .Values.tls.acme.onDemand.rateLimit.burst .Values.tls.acme.onDemand.rateLimit.interval }}
+    burst {{ .Values.tls.acme.onDemand.rateLimit.burst }}
+    interval {{ .Values.tls.acme.onDemand.rateLimit.interval }}
+    {{- end }}
+  }
+  {{- end }}
+
+  {{- if .Values.tls.acme.ocspCheckInterval }}
+  ocsp_interval {{ .Values.tls.acme.ocspCheckInterval }}
+  {{- end }}
 
   {{- if eq .Values.tls.acme.storage "kubernetes" }}
   storage kubernetes {
@@ -124,6 +147,9 @@ Generate the Caddyfile content
   {{- if .Values.k8sIngress.enabled }}
   k8s_ingress {
     ingress_class {{ .Values.k8sIngress.ingressClass }}
+    {{- if .Values.k8sIngress.watchNamespace }}
+    namespace {{ .Values.k8sIngress.watchNamespace }}
+    {{- end }}
     security {
       waf              {{ if .Values.k8sIngress.security.waf }}on{{ else }}off{{ end }}
       waf_mode         {{ .Values.k8sIngress.security.wafMode }}
@@ -141,6 +167,10 @@ Generate the Caddyfile content
   }
   {{- end }}
 
+  {{- if .Values.plugins.security.enabled }}
+  order authenticate before respond
+  order authorize before basicauth
+  {{- end }}
   {{- if .Values.plugins.coraza.enabled }}
   order coraza_waf first
   {{- end }}
@@ -148,6 +178,91 @@ Generate the Caddyfile content
   order crowdsec after coraza_waf
   {{- else if .Values.plugins.crowdsec.enabled }}
   order crowdsec first
+  {{- end }}
+
+  {{- if .Values.plugins.security.enabled }}
+
+  # ── caddy-security (Authentication/Authorization) ──────────────────────────────
+  security {
+    {{- range .Values.plugins.security.identityProviders }}
+    oauth identity provider {{ .name }} {
+      realm {{ .realm | default .name }}
+      driver {{ .driver }}
+      client_id {{ .clientId }}
+      client_secret {{ .clientSecret }}
+      {{- if .scopes }}
+      scopes {{ join " " .scopes }}
+      {{- end }}
+      {{- if .metadataUrl }}
+      metadata_url {{ .metadataUrl }}
+      {{- end }}
+      {{- if .baseAuthUrl }}
+      base_auth_url {{ .baseAuthUrl }}
+      {{- end }}
+      {{- if .tokenUrl }}
+      token_url {{ .tokenUrl }}
+      {{- end }}
+      {{- if .userInfoUrl }}
+      user_info_url {{ .userInfoUrl }}
+      {{- end }}
+    }
+    {{- end }}
+
+    authentication portal {{ .Values.plugins.security.portal.name }} {
+      crypto default token lifetime {{ .Values.plugins.security.portal.tokenLifetime }}
+      {{- if .Values.plugins.security.portal.cryptoKey }}
+      crypto key sign-verify {{ .Values.plugins.security.portal.cryptoKey }}
+      {{- end }}
+      {{- range .Values.plugins.security.portal.enableProviders }}
+      enable identity provider {{ . }}
+      {{- end }}
+      {{- if .Values.plugins.security.portal.cookie.domain }}
+      cookie domain {{ .Values.plugins.security.portal.cookie.domain }}
+      {{- end }}
+      {{- if .Values.plugins.security.portal.cookie.insecure }}
+      cookie insecure on
+      {{- end }}
+      {{- if .Values.plugins.security.portal.cookie.sameSite }}
+      cookie samesite {{ .Values.plugins.security.portal.cookie.sameSite }}
+      {{- end }}
+
+      {{- range .Values.plugins.security.transforms }}
+      transform user {
+        {{- if .match.realm }}
+        match realm {{ .match.realm }}
+        {{- end }}
+        {{- if .match.email }}
+        match email {{ .match.email }}
+        {{- end }}
+        {{- if .match.org }}
+        match org {{ .match.org }}
+        {{- end }}
+        {{- if .match.sub }}
+        match sub {{ .match.sub }}
+        {{- end }}
+        action {{ .action }}
+      }
+      {{- end }}
+    }
+
+    {{- range .Values.plugins.security.policies }}
+    authorization policy {{ .name }} {
+      set auth url {{ .authUrl }}
+      {{- if .cryptoKey }}
+      crypto key verify {{ .cryptoKey }}
+      {{- end }}
+      {{- range .allowRoles }}
+      allow roles {{ . }}
+      {{- end }}
+      {{- if .validateBearer }}
+      validate bearer header
+      {{- end }}
+      {{- if .injectHeaders }}
+      inject headers with claims
+      {{- end }}
+    }
+    {{- end }}
+  }
   {{- end }}
 
   servers {
@@ -322,6 +437,26 @@ Generate the Caddyfile content
     {{- end }}
   }
 }
+
+{{- if .Values.plugins.security.enabled }}
+
+# ── Authentication portal (caddy-security) ─────────────────────────────────────
+# Serves the login UI at /auth/* — handles OAuth callbacks and token issuance.
+:443 {
+  route /auth/* {
+    authenticate with {{ .Values.plugins.security.portal.name }}
+  }
+}
+{{- end }}
+
+# ── Authorization policy snippets ──────────────────────────────────────────────
+# Usage in route files:  import authorize <policy-name>
+# Example:  import authorize users
+{{- range .Values.plugins.security.policies }}
+(authorize-{{ .name }}) {
+  authorize with {{ .name }}
+}
+{{- end }}
 
 # ── Site routes (managed via ConfigMap caddy-routes) ───────────────────────────
 import /etc/caddy/routes/*.caddy

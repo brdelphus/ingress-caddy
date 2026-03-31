@@ -20,6 +20,7 @@ RUN set -eux; \
     --with github.com/porech/caddy-maxmind-geolocation@v1.0.1 \
     --with github.com/hslatman/caddy-crowdsec-bouncer@v0.10.1 \
     --with pkg.jsn.cam/caddy-defender=github.com/jasonlovesdoggo/caddy-defender@v0.10.0 \
+    --with github.com/greenpau/caddy-security \
     --with github.com/brdelphus/caddy-k8s \
     --with github.com/brdelphus/caddy-kubernetes-storage \
     --with github.com/pberkel/caddy-storage-redis \
@@ -28,4 +29,4 @@ RUN set -eux; \
 FROM caddy:2.11.2
 COPY --from=builder /usr/bin/caddy /usr/bin/caddy
 
-LABEL org.opencontainers.image.description="Caddy with WAF, L4, rate limiting, cache, GeoIP, CrowdSec, defender, k8s-ingress"
+LABEL org.opencontainers.image.description="Caddy with WAF, L4, rate limiting, cache, GeoIP, CrowdSec, defender, security (auth/SSO), k8s-ingress"

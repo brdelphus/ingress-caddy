@@ -1,8 +1,8 @@
 apiVersion: v2
 name: caddy
-description: Caddy ingress with WAF, TCP/UDP, CertMagic ACME (HTTP/TLS-ALPN/DNS), cert-manager CSI, CrowdSec, GeoIP, rate limiting and caching
+description: Caddy ingress with WAF, TCP/UDP, CertMagic ACME (HTTP/TLS-ALPN/DNS/On-Demand), cert-manager CSI, CrowdSec, GeoIP, authentication/SSO, rate limiting and caching
 type: application
-version: 0.5.0
+version: 0.6.0
 appVersion: "2.11.2"
 icon: https://caddyserver.com/resources/images/caddy-circle-lock.svg
 
@@ -13,6 +13,13 @@ keywords:
   - coraza
   - l4
   - crowdsec
+  - authentication
+  - sso
+  - oauth2
+  - oidc
+  - on-demand-tls
+  - acme
+  - eab
 
 dependencies:
   - name: redis
