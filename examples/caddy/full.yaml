@@ -8,6 +8,8 @@ k8sIngress:
   enabled: true
   ingressClass: caddy-custom
   isDefaultClass: false
+  # Watch all namespaces (default). Set to specific namespace for multi-tenant.
+  watchNamespace: ""
   security:
     waf: true
     wafMode: DetectionOnly   # switch to On once tuned
@@ -37,7 +39,7 @@ tls:
 configReloader:
   enabled: true
 
-# Option B: CertMagic built-in ACME (no external dependencies)
+# Option B: CertMagic built-in ACME with On-Demand TLS (no external dependencies)
 # tls:
 #   certManagerCSI:
 #     enabled: false
@@ -46,6 +48,17 @@ configReloader:
 #     email: admin@example.com
 #     challenge: http          # http | tls-alpn | dns
 #     storage: kubernetes      # no PVC needed
+#     # On-Demand TLS — issue certs dynamically on first request
+#     onDemand:
+#       enabled: true
+#       ask: "http://validator.internal/check"   # IMPORTANT for production
+#       rateLimit:
+#         burst: 5
+#         interval: 2m
+#     # For ZeroSSL, Sectigo, etc.
+#     # eab:
+#     #   keyId: "{env.ACME_EAB_KEY_ID}"
+#     #   macKey: "{env.ACME_EAB_MAC_KEY}"
 
 # ── Real IP ───────────────────────────────────────────────────────────────────
 
@@ -100,6 +113,46 @@ plugins:
   defender:
     enabled: true
     action: block   # block | tarpit | garbage
+
+  # ── Built-in Authentication (caddy-security) ────────────────────────────────
+  # Replaces Authelia/OAuth2-proxy for simple SSO use cases.
+  # Uncomment and configure to enable.
+  # security:
+  #   enabled: true
+  #   identityProviders:
+  #     - name: google
+  #       driver: google
+  #       realm: google
+  #       clientId: "{env.GOOGLE_CLIENT_ID}"
+  #       clientSecret: "{env.GOOGLE_CLIENT_SECRET}"
+  #       scopes: [openid, email, profile]
+  #   portal:
+  #     name: myportal
+  #     tokenLifetime: 86400
+  #     cryptoKey: "{env.JWT_SHARED_KEY}"
+  #     enableProviders: [google]
+  #     cookie:
+  #       domain: example.com
+  #   transforms:
+  #     - match:
+  #         realm: google
+  #         email: admin@example.com
+  #       action: add role authp/admin
+  #     - match:
+  #         realm: google
+  #       action: add role authp/user
+  #   policies:
+  #     - name: users
+  #       authUrl: /auth/oauth2/google
+  #       allowRoles: [authp/admin, authp/user]
+  #       injectHeaders: true
+  #   credentialsSecret: caddy-security-creds
+
+# ── High Availability ─────────────────────────────────────────────────────────
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
 
 # ── Observability ─────────────────────────────────────────────────────────────
 

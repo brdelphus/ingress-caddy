@@ -1,0 +1,128 @@
+# ── Built-in Authentication with caddy-security ──────────────────────────────
+# Native SSO without external dependencies like Authelia or OAuth2-proxy.
+# Supports OAuth2, OIDC, SAML, LDAP, local auth, and MFA.
+#
+# Usage:
+#   helm install caddy caddy-custom/caddy -n caddy --create-namespace \
+#     -f baremetal.yaml -f security.yaml
+#
+# Prerequisites:
+#   1. Create OAuth app in your identity provider (Google, GitHub, etc.)
+#   2. Create K8s secret with credentials:
+#      kubectl create secret generic caddy-security-creds \
+#        --from-literal=GOOGLE_CLIENT_ID=xxx \
+#        --from-literal=GOOGLE_CLIENT_SECRET=xxx \
+#        --from-literal=JWT_SHARED_KEY=$(openssl rand -hex 32) \
+#        -n caddy
+#
+# Documentation: https://docs.authcrunch.com
+
+plugins:
+  security:
+    enabled: true
+
+    # ── Identity Providers ────────────────────────────────────────────────────
+    # Configure one or more OAuth2/OIDC providers.
+    identityProviders:
+      # Google OAuth2
+      - name: google
+        driver: google
+        realm: google
+        clientId: "{env.GOOGLE_CLIENT_ID}"
+        clientSecret: "{env.GOOGLE_CLIENT_SECRET}"
+        scopes:
+          - openid
+          - email
+          - profile
+
+      # GitHub OAuth2 (uncomment to enable)
+      # - name: github
+      #   driver: github
+      #   realm: github
+      #   clientId: "{env.GITHUB_CLIENT_ID}"
+      #   clientSecret: "{env.GITHUB_CLIENT_SECRET}"
+      #   scopes:
+      #     - user
+
+      # Generic OIDC (Keycloak, Authentik, Authelia, etc.)
+      # - name: keycloak
+      #   driver: generic
+      #   realm: keycloak
+      #   clientId: "{env.KEYCLOAK_CLIENT_ID}"
+      #   clientSecret: "{env.KEYCLOAK_CLIENT_SECRET}"
+      #   scopes:
+      #     - openid
+      #     - email
+      #     - profile
+      #   metadataUrl: "https://keycloak.example.com/realms/master/.well-known/openid-configuration"
+
+    # ── Authentication Portal ─────────────────────────────────────────────────
+    portal:
+      name: myportal
+      tokenLifetime: 86400              # 24 hours
+      cryptoKey: "{env.JWT_SHARED_KEY}" # REQUIRED - generate with: openssl rand -hex 32
+      enableProviders:
+        - google
+        # - github
+        # - keycloak
+      cookie:
+        domain: example.com             # Set to your domain for cross-subdomain SSO
+        insecure: false                 # Set true only for local dev (HTTP)
+        sameSite: lax
+
+    # ── User Transforms ───────────────────────────────────────────────────────
+    # Map users from identity providers to roles.
+    # Without transforms, all users get "authp/guest" role by default.
+    transforms:
+      # Admin by email
+      - match:
+          realm: google
+          email: admin@example.com
+        action: add role authp/admin
+
+      # All Google users get user role
+      - match:
+          realm: google
+        action: add role authp/user
+
+      # GitHub org membership (uncomment if using GitHub)
+      # - match:
+      #     realm: github
+      #     org: myorg
+      #   action: add role authp/user
+
+    # ── Authorization Policies ────────────────────────────────────────────────
+    # Define policies to protect routes. Use in Caddyfile: import authorize-<name>
+    policies:
+      # Allow admins and users
+      - name: users
+        authUrl: /auth/oauth2/google
+        allowRoles:
+          - authp/admin
+          - authp/user
+        injectHeaders: true             # Pass user claims to backend
+
+      # Admin-only policy
+      - name: admins
+        authUrl: /auth/oauth2/google
+        allowRoles:
+          - authp/admin
+        injectHeaders: true
+
+    # ── Credentials Secret ────────────────────────────────────────────────────
+    credentialsSecret: caddy-security-creds
+
+# ── Example: Protecting a route ───────────────────────────────────────────────
+# In your Caddyfile route (via ConfigMap or extraConfig):
+#
+#   dashboard.example.com {
+#     import authorize-users
+#     reverse_proxy dashboard.default.svc.cluster.local:8080
+#   }
+#
+#   admin.example.com {
+#     import authorize-admins
+#     reverse_proxy admin.default.svc.cluster.local:8080
+#   }
+#
+# The authentication portal is automatically served at /auth/*
