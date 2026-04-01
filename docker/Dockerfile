@@ -13,7 +13,7 @@ ARG DNS_PROVIDER=""
 
 RUN set -eux; \
     xcaddy build \
-    --with github.com/corazawaf/coraza-caddy/v2@v2.3.0 \
+    --with github.com/corazawaf/coraza-caddy/v2@v2.4.0 \
     --with github.com/mholt/caddy-l4@v0.1.0 \
     --with github.com/mholt/caddy-ratelimit@b8d8c9a9d99e \
     --with github.com/caddyserver/cache-handler@v0.16.0 \
