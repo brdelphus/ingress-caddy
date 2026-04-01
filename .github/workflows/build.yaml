@@ -4,10 +4,12 @@ on:
   push:
     branches: [main]
     paths:
+      - VERSION
       - docker/**
       - .github/workflows/build.yaml
   pull_request:
     paths:
+      - VERSION
       - docker/**
   workflow_dispatch:
     inputs:
@@ -57,10 +59,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract Caddy version from Dockerfile
+      - name: Read image version
         id: caddy_version
         run: |
-          VERSION=$(grep '^FROM caddy:' docker/Dockerfile | head -1 | sed 's/FROM caddy:\(.*\)-builder/\1/')
+          VERSION=$(cat VERSION | tr -d '[:space:]')
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Sanitize platform name for artifact
@@ -124,10 +126,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract Caddy version from Dockerfile
+      - name: Read image version
         id: caddy_version
         run: |
-          VERSION=$(grep '^FROM caddy:' docker/Dockerfile | head -1 | sed 's/FROM caddy:\(.*\)-builder/\1/')
+          VERSION=$(cat VERSION | tr -d '[:space:]')
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Docker metadata

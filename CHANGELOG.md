@@ -1,5 +1,26 @@
 # Changelog
 
+Versions track the `ingress-caddy` image. The Helm chart version is independent
+but its `appVersion` always matches the image version.
+
+## [1.0.0] - 2026-04-01
+
+### Breaking Changes
+
+- Image versioning switched from Caddy version (`2.11.2`) to ingress-caddy version (`1.0.0`).
+  Update `image.tag` in your `values.yaml` if overriding it.
+
+### Changes
+
+- First versioned release under the `ingress-caddy` name (formerly `caddy-custom`)
+- Image: `ghcr.io/brdelphus/ingress-caddy:1.0.0`
+- Built on Caddy `2.11.2`
+- Module updates: coraza-caddy `v2.4.0`, caddy-maxmind-geolocation `v1.0.2`, caddy-security pinned to `v1.1.59`
+
+### Helm chart: 0.9.0
+
+---
+
 ## [0.8.2] - 2026-04-01
 
 ### Fixes

@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - helm/**
+      - VERSION
+      - CHANGELOG.md
   workflow_dispatch:
 
 concurrency:
