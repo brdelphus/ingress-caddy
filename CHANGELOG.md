@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.8.2] - 2026-04-01
+
+### Fixes
+
+- `.cr-config.yaml`: chart-releaser now correctly targets `ingress-caddy` repo
+- `docker/build.sh`: default image name updated to `ingress-caddy`
+- README: corrected `ingressClassName` examples (`caddy`, not `ingress-caddy`)
+
+---
+
 ## [0.8.1] - 2026-03-31
 
 ### Changes
