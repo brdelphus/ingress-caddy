@@ -2,10 +2,10 @@
 # All optional plugins enabled. Tune to your needs before deploying.
 #
 # Usage:
-#   helm install caddy caddy-custom/caddy -n caddy --create-namespace -f full.yaml
+#   helm install caddy ingress-caddy/caddy -n caddy --create-namespace -f full.yaml
 
 k8sIngress:
-  ingressClass: caddy-custom
+  ingressClass: caddy
   isDefaultClass: false
   # Watch all namespaces (default). Set to specific namespace for multi-tenant.
   watchNamespace: ""

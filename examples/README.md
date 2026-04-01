@@ -18,32 +18,32 @@ Combine files with multiple `-f` flags:
 
 ```bash
 # Bare-metal, certs via cert-manager
-helm install caddy caddy-custom/caddy -n caddy --create-namespace \
+helm install caddy ingress-caddy/caddy -n caddy --create-namespace \
   -f examples/caddy/baremetal.yaml
 # Then apply your ClusterIssuer + Certificate resources — see cert-manager.yaml
 
 # Bare-metal, certs via CertMagic built-in ACME (no cert-manager needed)
-helm install caddy caddy-custom/caddy -n caddy --create-namespace \
+helm install caddy ingress-caddy/caddy -n caddy --create-namespace \
   -f examples/caddy/baremetal.yaml \
   -f examples/caddy/certmagic.yaml
 
 # Bare-metal with mail passthrough
-helm install caddy caddy-custom/caddy -n caddy --create-namespace \
+helm install caddy ingress-caddy/caddy -n caddy --create-namespace \
   -f examples/caddy/baremetal.yaml \
   -f examples/caddy/mail.yaml
 
 # MetalLB with full security stack
-helm install caddy caddy-custom/caddy -n caddy --create-namespace \
+helm install caddy ingress-caddy/caddy -n caddy --create-namespace \
   -f examples/caddy/loadbalancer.yaml \
   -f examples/caddy/full.yaml
 
 # On-Demand TLS — issue certs dynamically on first request
-helm install caddy caddy-custom/caddy -n caddy --create-namespace \
+helm install caddy ingress-caddy/caddy -n caddy --create-namespace \
   -f examples/caddy/baremetal.yaml \
   -f examples/caddy/ondemand-tls.yaml
 
 # ZeroSSL instead of Let's Encrypt
-helm install caddy caddy-custom/caddy -n caddy --create-namespace \
+helm install caddy ingress-caddy/caddy -n caddy --create-namespace \
   -f examples/caddy/baremetal.yaml \
   -f examples/caddy/zerossl.yaml
 ```
@@ -51,7 +51,7 @@ helm install caddy caddy-custom/caddy -n caddy --create-namespace \
 ## App values
 
 Each file is a drop-in values override for the app's official Helm chart.
-Set `ingressClassName: caddy-custom` and the relevant `caddy.ingress/` annotations.
+Set `ingressClassName: caddy` and the relevant `caddy.ingress/` annotations.
 
 | File | Chart | Helm repo |
 |---|---|---|
@@ -111,7 +111,7 @@ kubectl create secret generic caddy-security-creds \
   --from-literal=JWT_SHARED_KEY=$(openssl rand -hex 32) \
   -n caddy
 
-helm install caddy caddy-custom/caddy -n caddy --create-namespace \
+helm install caddy ingress-caddy/caddy -n caddy --create-namespace \
   -f examples/caddy/baremetal.yaml \
   -f examples/caddy/security.yaml
 ```

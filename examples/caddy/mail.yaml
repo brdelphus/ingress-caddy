@@ -4,7 +4,7 @@
 # These ports must be open on your nodes / firewall.
 #
 # Combine with baremetal.yaml or loadbalancer.yaml:
-#   helm install caddy caddy-custom/caddy -n caddy --create-namespace \
+#   helm install caddy ingress-caddy/caddy -n caddy --create-namespace \
 #     -f baremetal.yaml -f mail.yaml
 
 l4:

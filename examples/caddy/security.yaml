@@ -3,7 +3,7 @@
 # Supports OAuth2, OIDC, SAML, LDAP, local auth, and MFA.
 #
 # Usage:
-#   helm install caddy caddy-custom/caddy -n caddy --create-namespace \
+#   helm install caddy ingress-caddy/caddy -n caddy --create-namespace \
 #     -f baremetal.yaml -f security.yaml
 #
 # Prerequisites:

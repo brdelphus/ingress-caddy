@@ -527,13 +527,13 @@ reloader:
   enabled: false
 
 # ── Kubernetes Ingress controller ─────────────────────────────────────────────
-# Watches Ingress resources with ingressClassName: caddy-custom and dynamically
+# Watches Ingress resources with ingressClassName: caddy and dynamically
 # inserts routes into Caddy via the admin API. No more manual Caddyfile editing
-# for HTTP services — just set ingressClassName: caddy-custom in your charts.
+# for HTTP services — just set ingressClassName: caddy in your charts.
 
 k8sIngress:
   # IngressClass name — must match spec.ingressClassName in your Ingress resources
-  ingressClass: caddy-custom
+  ingressClass: caddy
   # Set true to make this the cluster-wide default IngressClass
   isDefaultClass: false
 

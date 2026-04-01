@@ -32,7 +32,7 @@
 #     solvers:
 #       - http01:
 #           ingress:
-#             ingressClassName: caddy-custom
+#             ingressClassName: caddy
 #
 # Staging issuer (avoids rate limits while testing):
 #
@@ -50,7 +50,7 @@
 #     solvers:
 #       - http01:
 #           ingress:
-#             ingressClassName: caddy-custom
+#             ingressClassName: caddy
 
 # ── Step 2: Ingress with cert-manager annotation ───────────────────────────────
 # Add cert-manager.io/cluster-issuer to the Ingress. cert-manager watches
@@ -69,7 +69,7 @@
 #   annotations:
 #     cert-manager.io/cluster-issuer: letsencrypt-prod   # triggers cert issuance
 # spec:
-#   ingressClassName: caddy-custom
+#   ingressClassName: caddy
 #   tls:
 #     - hosts:
 #         - app.example.com

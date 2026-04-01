@@ -6,10 +6,10 @@
 # provision certificates, or certmagic.yaml for CertMagic-based issuance.
 #
 # Usage:
-#   helm install caddy caddy-custom/caddy -n caddy --create-namespace -f baremetal.yaml
+#   helm install caddy ingress-caddy/caddy -n caddy --create-namespace -f baremetal.yaml
 
 k8sIngress:
-  ingressClass: caddy-custom
+  ingressClass: caddy
 
 workloadType: DaemonSet
 hostPorts:

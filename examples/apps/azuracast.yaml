@@ -23,7 +23,7 @@ metadata:
     caddy.ingress/proxy-send-timeout: "3600"
     caddy.ingress/proxy-http-version: "1.1"   # required for HLS streaming
 spec:
-  ingressClassName: caddy-custom
+  ingressClassName: caddy
   tls:
     - hosts:
         - radio.example.com

@@ -7,10 +7,10 @@
 # provision certificates, or certmagic.yaml for CertMagic-based issuance.
 #
 # Usage:
-#   helm install caddy caddy-custom/caddy -n caddy --create-namespace -f loadbalancer.yaml
+#   helm install caddy ingress-caddy/caddy -n caddy --create-namespace -f loadbalancer.yaml
 
 k8sIngress:
-  ingressClass: caddy-custom
+  ingressClass: caddy
 
 workloadType: Deployment
 replicaCount: 2
