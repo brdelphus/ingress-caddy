@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.0.1] - 2026-04-01
+
+### Security
+
+- **CVE-2026-30836 (CRITICAL)** — upgraded `github.com/smallstep/certificates` from `v0.30.0-rc3` to `v0.30.0` — unauthenticated certificate issuance via SCEP Update Request
+- **CVE-2026-33186 (CRITICAL)** — upgraded `google.golang.org/grpc` from `v1.79.1` to `v1.79.3` — authorization bypass via improper HTTP/2 path validation
+- **CVE-2026-22184 (HIGH)** — added `apk upgrade --no-cache` in Docker final stage to patch `zlib 1.3.1-r2` → `1.3.2-r0` (buffer overflow in untgz utility)
+
+### Helm chart: 0.9.2
+
+---
+
 ## [1.0.1] - 2026-03-31
 
 ### Bug Fixes
