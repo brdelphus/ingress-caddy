@@ -7,7 +7,7 @@ A custom [Caddy](https://caddyserver.com) image for Kubernetes, built to replace
 
 TLS is opt-in per Ingress: add `spec.tls` with a `secretName` and the module loads the certificate from the Kubernetes Secret automatically. Ingresses without `spec.tls` are HTTP only.
 
-Includes a built-in Kubernetes Ingress controller — apps set `ingressClassName: ingress-caddy` and routes appear in Caddy automatically, no manual config editing required.
+Includes a built-in Kubernetes Ingress controller — apps set `ingressClassName: caddy` and routes appear in Caddy automatically, no manual config editing required.
 
 Supports two deployment modes:
 - **DaemonSet + hostPorts** — runs on every node, binds ports directly. Ideal for bare-metal k3s.
@@ -15,7 +15,7 @@ Supports two deployment modes:
 
 Created after migrating from ingress-nginx (deprecated) to Traefik, finding Traefik lacking, discovering Caddy, and realising there was no proper Kubernetes ingress support for it — so I built one.
 
-**Image:** `ghcr.io/brdelphus/ingress-caddy`
+**Image:** `ghcr.io/brdelphus/ingress-caddy` — multi-arch: `linux/amd64` + `linux/arm64`, built natively (no QEMU)
 
 ---
 
