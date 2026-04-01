@@ -13,11 +13,11 @@ ARG DNS_PROVIDER=""
 
 RUN set -eux; \
     xcaddy build \
-    --with github.com/corazawaf/coraza-caddy/v2@v2.4.0 \
+    --with github.com/corazawaf/coraza-caddy/v2@v2.3.0 \
     --with github.com/mholt/caddy-l4@v0.1.0 \
     --with github.com/mholt/caddy-ratelimit@b8d8c9a9d99e \
     --with github.com/caddyserver/cache-handler@v0.16.0 \
-    --with github.com/porech/caddy-maxmind-geolocation@v1.0.2 \
+    --with github.com/porech/caddy-maxmind-geolocation@v1.0.1 \
     --with github.com/hslatman/caddy-crowdsec-bouncer@v0.10.1 \
     --with pkg.jsn.cam/caddy-defender=github.com/jasonlovesdoggo/caddy-defender@v0.10.0 \
     --with github.com/greenpau/caddy-security@v1.1.59 \
