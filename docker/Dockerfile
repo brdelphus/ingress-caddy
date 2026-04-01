@@ -29,6 +29,9 @@ RUN set -eux; \
 FROM caddy:2.11.2
 COPY --from=builder /usr/bin/caddy /usr/bin/caddy
 
+# Upgrade OS packages with known vulnerabilities not yet fixed in the base image
+RUN apk upgrade --no-cache
+
 LABEL org.opencontainers.image.title="ingress-caddy" \
       org.opencontainers.image.description="Caddy-based Kubernetes ingress controller with WAF, L4, rate limiting, cache, GeoIP, CrowdSec, defender and SSO" \
       org.opencontainers.image.source="https://github.com/brdelphus/ingress-caddy"
