@@ -41,51 +41,29 @@ jobs:
           helm repo add bitnami https://charts.bitnami.com/bitnami
           helm dependency update helm/
 
-      - name: Generate release notes
+      - name: Extract release notes from CHANGELOG.md
         run: |
           CHART_NAME=$(grep '^name:' helm/Chart.yaml | awk '{print $2}')
           CHART_VERSION=$(grep '^version:' helm/Chart.yaml | awk '{print $2}')
+          APP_VERSION=$(grep '^appVersion:' helm/Chart.yaml | awk '{print $2}' | tr -d '"')
           CURRENT_TAG="${CHART_NAME}-${CHART_VERSION}"
 
+          # Extract the section for the current appVersion from CHANGELOG.md
+          awk "/^## \[${APP_VERSION}\]/{found=1; next} found && /^## \[/{exit} found{print}" CHANGELOG.md \
+            | sed '/^---$/d' \
+            | sed '/^$/N;/^\n$/d' \
+            > /tmp/release-notes.md
+
+          # Fallback if version not found in changelog
+          if [ ! -s /tmp/release-notes.md ]; then
+            echo "No changelog entry found for ${APP_VERSION}." > /tmp/release-notes.md
+          fi
+
           PREV_TAG=$(git tag -l "${CHART_NAME}-*" --sort=-v:refname | grep -v "^${CURRENT_TAG}$" | head -1)
-
-          {
-            echo "## What's Changed"
-            echo ""
-
-            RANGE="${PREV_TAG:+${PREV_TAG}..HEAD}"
-            [ -z "$RANGE" ] && RANGE="HEAD"
-
-            FEATURES=$(git log $RANGE --pretty=format:"%s (%h)" -- helm/ | grep -iE "^feat" || true)
-            FIXES=$(git log $RANGE --pretty=format:"%s (%h)" -- helm/ | grep -iE "^fix" || true)
-            DOCS=$(git log $RANGE --pretty=format:"%s (%h)" -- helm/ | grep -iE "^docs" || true)
-            OTHER=$(git log $RANGE --pretty=format:"%s (%h)" -- helm/ | grep -ivE "^(feat|fix|docs)" || true)
-
-            if [ -n "$FEATURES" ]; then
-              echo "### Features"
-              echo "$FEATURES" | sed 's/^/- /'
-              echo ""
-            fi
-            if [ -n "$FIXES" ]; then
-              echo "### Bug Fixes"
-              echo "$FIXES" | sed 's/^/- /'
-              echo ""
-            fi
-            if [ -n "$DOCS" ]; then
-              echo "### Documentation"
-              echo "$DOCS" | sed 's/^/- /'
-              echo ""
-            fi
-            if [ -n "$OTHER" ]; then
-              echo "### Other"
-              echo "$OTHER" | sed 's/^/- /'
-              echo ""
-            fi
-
-            if [ -n "$PREV_TAG" ]; then
-              echo "**Full diff:** [\`${PREV_TAG}...${CURRENT_TAG}\`](https://github.com/${{ github.repository }}/compare/${PREV_TAG}...${CURRENT_TAG})"
-            fi
-          } > /tmp/release-notes.md
+          if [ -n "$PREV_TAG" ]; then
+            echo "" >> /tmp/release-notes.md
+            echo "**Full diff:** [\`${PREV_TAG}...${CURRENT_TAG}\`](https://github.com/${{ github.repository }}/compare/${PREV_TAG}...${CURRENT_TAG})" >> /tmp/release-notes.md
+          fi
 
           cat /tmp/release-notes.md
           echo "CHART_TAG=${CURRENT_TAG}" >> "$GITHUB_ENV"
