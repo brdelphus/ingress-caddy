@@ -2,7 +2,7 @@
 set -euo pipefail
 
 REGISTRY="${REGISTRY:-ghcr.io/brdelphus}"
-IMAGE="${IMAGE:-caddy-custom}"
+IMAGE="${IMAGE:-ingress-caddy}"
 TAG="${TAG:-latest}"
 PLATFORMS="${PLATFORMS:-linux/arm64,linux/amd64}"
 

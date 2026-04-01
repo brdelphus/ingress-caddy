@@ -1,6 +1,6 @@
 # chart-releaser configuration
 # https://github.com/helm/chart-releaser
 owner: brdelphus
-git-repo: caddy-custom
+git-repo: ingress-caddy
 charts-dir: .          # look for Chart.yaml in subdirs of repo root (finds helm/)
 pages-branch: gh-pages

@@ -133,7 +133,7 @@ helm install caddy ./helm \
 
 ```yaml
 k8sIngress:
-  ingressClass: ingress-caddy
+  ingressClass: caddy
 
 realIP:
   trustedProxies:
@@ -157,7 +157,7 @@ metadata:
     caddy.ingress/tls: cert-manager          # cert-manager provisions the Secret
     cert-manager.io/cluster-issuer: letsencrypt-prod
 spec:
-  ingressClassName: ingress-caddy
+  ingressClassName: caddy
   tls:
     - hosts:
         - app.example.com
@@ -221,7 +221,7 @@ L4 ports declared in `l4.hostPorts` are automatically added to the LoadBalancer 
 
 ```yaml
 k8sIngress:
-  ingressClass: ingress-caddy   # matches spec.ingressClassName
+  ingressClass: caddy   # matches spec.ingressClassName
   isDefaultClass: false        # set true to make this the cluster default
   security:
     waf: false                 # inject Coraza WAF handler into every Ingress route (requires plugins.coraza.enabled: true)
@@ -538,7 +538,7 @@ metadata:
     caddy.ingress/tls: cert-manager               # cert-manager provisions the Secret
     cert-manager.io/cluster-issuer: letsencrypt-prod
 spec:
-  ingressClassName: ingress-caddy
+  ingressClassName: caddy
   tls:
     - hosts:
         - app.example.com
