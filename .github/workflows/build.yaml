@@ -69,6 +69,10 @@ jobs:
         id: platform
         run: echo "name=$(echo '${{ matrix.platform }}' | tr '/' '-')" >> "$GITHUB_OUTPUT"
 
+      - name: Compute Dockerfile hash (cache key)
+        id: dockerfile_hash
+        run: echo "hash=$(sha256sum docker/Dockerfile | cut -c1-12)" >> "$GITHUB_OUTPUT"
+
       - name: Build and push digest
         id: build
         uses: docker/build-push-action@v6
@@ -77,8 +81,8 @@ jobs:
           platforms: ${{ matrix.platform }}
           push: ${{ github.event_name != 'pull_request' && (github.event_name != 'workflow_dispatch' || inputs.push) }}
           outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=${{ github.event_name != 'pull_request' && (github.event_name != 'workflow_dispatch' || inputs.push) }}
-          cache-from: type=gha,scope=${{ matrix.platform }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.platform }}
+          cache-from: type=gha,scope=${{ matrix.platform }}-${{ steps.dockerfile_hash.outputs.hash }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.platform }}-${{ steps.dockerfile_hash.outputs.hash }}
 
       - name: Export digest
         if: github.event_name != 'pull_request'
