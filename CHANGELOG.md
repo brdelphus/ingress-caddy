@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.0.2] - 2026-04-02
+
+### Security
+
+- **Base image switched from Alpine 3.23 to Chainguard static (Wolfi)** — eliminates all OS-level CVEs (16 found by Grype on Alpine: 3 High, 10 Medium, 3 Low in `curl`, `libcrypto3`, `nghttp2-libs`, `busybox`). Chainguard images are rebuilt daily with automated patching.
+- **Binary now built with `CGO_ENABLED=0`** — fully static binary, no libc dependency, runs on any Linux kernel.
+
+### Helm chart: 0.9.3
+
+---
+
 ## [1.0.1] - 2026-04-01
 
 ### Security
