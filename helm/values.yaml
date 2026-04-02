@@ -6,8 +6,12 @@ fullnameOverride: ""
 
 image:
   repository: ghcr.io/brdelphus/ingress-caddy
-  tag: "1.0.0"
+  tag: "1.0.2"
   pullPolicy: IfNotPresent
+
+# Image pull secrets for private registries.
+# Example: imagePullSecrets: [{name: my-registry-secret}]
+imagePullSecrets: []
 
 # ── Plugin toggles ─────────────────────────────────────────────────────────────
 
@@ -446,6 +450,8 @@ service:
     # Policy: SingleStack, PreferDualStack, or RequireDualStack
     ipFamilyPolicy: ""          # e.g. "PreferDualStack"
 
+  labels: {}
+
   annotations: {}
     # MetalLB address pool:
     # metallb.universe.tf/address-pool: production
@@ -491,6 +497,19 @@ tolerations:
 
 nodeSelector: {}
 
+# Pod affinity / anti-affinity rules.
+# Example — spread pods across nodes (recommended for Deployment mode):
+#   affinity:
+#     podAntiAffinity:
+#       preferredDuringSchedulingIgnoredDuringExecution:
+#         - weight: 100
+#           podAffinityTerm:
+#             topologyKey: kubernetes.io/hostname
+#             labelSelector:
+#               matchLabels:
+#                 app.kubernetes.io/name: caddy
+affinity: {}
+
 resources:
   requests:
     cpu: 100m
@@ -498,6 +517,22 @@ resources:
   limits:
     cpu: 1000m
     memory: 512Mi
+
+# Pod-level security context applied to the entire pod spec.
+# Example: {fsGroup: 1000}
+podSecurityContext: {}
+
+# Container-level security context for the Caddy container.
+# NET_BIND_SERVICE is required to bind ports 80 and 443 as non-root.
+# Remove it and set runAsUser: 65534 (nobody) once you switch to hostPorts
+# forwarded by a privileged DaemonSet or use a LoadBalancer on high ports.
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: ["ALL"]
+    add: ["NET_BIND_SERVICE"]
+  runAsUser: 0
+  runAsGroup: 0
 
 podAnnotations: {}
 
