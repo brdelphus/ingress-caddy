@@ -209,9 +209,7 @@ Generate the Caddyfile content
 
     authentication portal {{ .Values.plugins.security.portal.name }} {
       crypto default token lifetime {{ .Values.plugins.security.portal.tokenLifetime }}
-      {{- if .Values.plugins.security.portal.cryptoKey }}
-      crypto key sign-verify {{ .Values.plugins.security.portal.cryptoKey }}
-      {{- end }}
+      crypto key sign-verify {{ .Values.plugins.security.portal.cryptoKey | default "{env.JWT_SHARED_KEY}" }}
       {{- range .Values.plugins.security.portal.enableProviders }}
       enable identity provider {{ . }}
       {{- end }}
