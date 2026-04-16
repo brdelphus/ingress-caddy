@@ -87,6 +87,7 @@ spec:
       - name: caddy
         image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
+        args: ["run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]
         {{- with .Values.securityContext }}
         securityContext:
           {{- toYaml . | nindent 10 }}

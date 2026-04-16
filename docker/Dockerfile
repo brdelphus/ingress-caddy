@@ -44,3 +44,4 @@ LABEL org.opencontainers.image.title="ingress-caddy" \
       org.opencontainers.image.documentation="https://caddyserver.com/docs"
 
 ENTRYPOINT ["/usr/bin/caddy"]
+CMD ["run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]
