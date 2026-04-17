@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.0.6] - 2026-04-17
+
+### Bug Fixes
+
+- **`http_server_name` Caddyfile directive now recognized** — `UnmarshalCaddyfile` was missing the `http_server_name` case, causing a parse error when `k8sIngress.httpServerName` was set via helm values.
+
+### Helm chart: 0.9.8
+
+---
+
 ## [1.0.5] - 2026-04-17
 
 ### Bug Fixes
