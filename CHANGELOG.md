@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.0.12] - 2026-04-18
+
+### Bug Fixes
+
+- **Infinite config-reload loop eliminated** — every admin API mutation triggers a Caddy config reload which restarts `k8s_ingress`, which would sync all ingresses again, mutate again, and loop forever. Fixed by fetching the current route JSON and normalising both sides before deciding to upsert. If the content is already identical the call returns immediately without touching the config, so no reload is triggered and the module reaches a stable state after the first successful add.
+
+### Helm chart: 0.9.14
+
+---
+
 ## [1.0.11] - 2026-04-18
 
 ### Bug Fixes
