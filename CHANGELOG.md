@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.0.15] - 2026-04-18
+
+### Bug Fixes
+
+- **Access logging missing for HTTP requests** — `accessLogManager` only configured access logging on the HTTPS server (`srv0`). Requests arriving on the HTTP server (`srv1`, port 80) produced no access log entries. Fixed by passing `httpServerName` to the manager; `Enable()` and `rebuild()` now configure and maintain `skip_hosts` on both servers.
+
+### Helm chart: 0.9.17
+
+---
+
 ## [1.0.14] - 2026-04-18
 
 ### Bug Fixes
