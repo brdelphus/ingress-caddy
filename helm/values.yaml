@@ -199,8 +199,11 @@ l4:
   # L4 routes templated into the Caddyfile global block.
   # proxyProtocol: v2 → sends PROXY protocol v2 to the backend so it can
   # recover the real client IP (needed for Postfix, Dovecot, HAProxy backends).
+  # UDP listeners require the "udp/" prefix on the address (e.g. "udp/:53").
+  # TCP listeners use a plain address (e.g. ":8000"). Without the prefix,
+  # caddy-l4 defaults to TCP even if the upstream dial is udp/.
   routes: []
-  # - address: ":53"
+  # - address: "udp/:53"
   #   upstream: "udp/kube-dns.kube-system.svc.cluster.local:53"
   # - address: ":53"
   #   upstream: "tcp/kube-dns.kube-system.svc.cluster.local:53"
