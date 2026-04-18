@@ -2,8 +2,8 @@ apiVersion: v2
 name: caddy
 description: Caddy ingress with WAF, TCP/UDP, CertMagic ACME (HTTP/TLS-ALPN/DNS/On-Demand), cert-manager CSI, CrowdSec, GeoIP, authentication/SSO, rate limiting and caching
 type: application
-version: 0.9.17
-appVersion: "1.0.15"
+version: 0.9.18
+appVersion: "1.0.16"
 icon: https://caddyserver.com/resources/images/caddy-circle-lock.svg
 
 keywords:

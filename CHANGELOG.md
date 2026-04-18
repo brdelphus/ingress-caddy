@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.0.16] - 2026-04-18
+
+### Bug Fixes
+
+- **Duplicate access log entries** — every HTTP request was written twice: once via the global `include: ["http.log.access"]` filter on the named logger, and once via the server's `default_logger_name` routing. Fixed by removing the `include` filter; entries now reach the "access" logger only through `default_logger_name`, producing exactly one line per request.
+
+### Helm chart: 0.9.18
+
+---
+
 ## [1.0.15] - 2026-04-18
 
 ### Bug Fixes
