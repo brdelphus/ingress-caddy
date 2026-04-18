@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.0.19] - 2026-04-18
+
+### Bug Fixes
+
+- **Caddyfile crash on `verbose_logs`** — `verbose_logs` was missing from `UnmarshalCaddyfile`, causing Caddy to exit with `unknown k8s_ingress option: verbose_logs`.
+
+### Helm chart: 0.9.21
+
+---
+
 ## [1.0.18] - 2026-04-18
 
 ### New Features
