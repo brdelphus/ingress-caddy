@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.0.17] - 2026-04-18
+
+### Bug Fixes
+
+- **Duplicate access log entries (real fix)** — root cause identified: Caddy's default global logger catches ALL log entries including `http.log.access.*`, and the named "access" logger also receives the same entries via `default_logger_name` routing — producing two writes per request. Fixed by restoring `include: ["http.log.access"]` on the "access" logger (limiting its scope) AND configuring the default global logger with `exclude: ["http.log.access"]` (removing it from the catch-all). Each request now produces exactly one access log line.
+
+### Helm chart: 0.9.19
+
+---
+
 ## [1.0.16] - 2026-04-18
 
 ### Bug Fixes
