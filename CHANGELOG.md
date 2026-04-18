@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.0.11] - 2026-04-18
+
+### Bug Fixes
+
+- **Duplicate `@id` on config reload eliminated** — when Caddy performs an in-place config reload, the old and new `k8s_ingress` module instances overlap. Both would see the same ingress and race to upsert its route, producing `duplicate ID found at routes/1 and routes/2`. Fixed by tying all admin API calls in `handleAdd`/`handleDelete` to a `context.Context` that is cancelled when `Stop()` is called on the old instance, so in-flight calls from the dying instance are aborted before the new instance starts.
+
+### New Features
+
+- **Structured annotation logging** — on every ingress sync (startup, reload, create, annotation update), caddy-k8s now logs:
+  - `k8s_ingress: syncing ingress` with `ingress`, `hosts`, and `class` — emitted unconditionally so restarts and reloads are always visible.
+  - `k8s_ingress: ingress annotations` listing every non-default annotation value (WAF mode, rate limit, CORS origins, whitelist/blocklist, basic auth realm, rewrite target, request/response header keys, TLS handler, body size limit, proxy timeouts, etc.). Only emitted when at least one annotation is set.
+
+### Helm chart: 0.9.13
+
+---
+
 ## [1.0.10] - 2026-04-18
 
 ### Bug Fixes
