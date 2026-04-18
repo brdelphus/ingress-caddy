@@ -1,0 +1,46 @@
+## minikube dev overrides — not for production
+image:
+  pullPolicy: IfNotPresent
+
+# Single-pod Deployment; DaemonSet hostPorts don't work with docker driver
+workloadType: Deployment
+replicaCount: 1
+
+hostPorts:
+  enabled: false
+
+# NodePort service — access via minikube ip + nodePort
+service:
+  enabled: true
+  type: NodePort
+
+# No cert-manager in minikube — disable CSI
+tls:
+  certManagerCSI:
+    enabled: false
+  existingSecret: ""
+
+# Coraza WAF in detection-only is fine, keep it on
+plugins:
+  coraza:
+    enabled: true
+    ruleEngine: DetectionOnly
+
+# Minikube pod CIDR is 10.244.0.0/16 by default
+realIP:
+  trustedProxies:
+    - 10.244.0.0/16
+    - 127.0.0.1/32
+
+# No Prometheus Operator in minikube
+metrics:
+  serviceMonitor:
+    enabled: false
+
+# PDB needs >=2 pods; irrelevant for single-replica dev
+podDisruptionBudget:
+  enabled: false
+
+# Make caddy the default IngressClass for easy testing
+k8sIngress:
+  isDefaultClass: true

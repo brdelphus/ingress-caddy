@@ -462,9 +462,14 @@ Generate the Caddyfile content
 # "no Caddy server listening on :443 found". Routes are injected dynamically
 # by caddy-k8s; these blocks just anchor the servers so discovery works.
 :80 {
+  # Placeholder route so Caddy initialises routes as [] not null;
+  # without this the k8s_ingress admin-API POST to append a route fails
+  # with "cannot unmarshal object into RouteList".
+  respond /healthz 200
 }
 
 :443 {
+  respond /healthz 200
 }
 
 # ── Site routes (managed via ConfigMap caddy-routes) ───────────────────────────

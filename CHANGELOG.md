@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.0.7] - 2026-04-18
+
+### Bug Fixes
+
+- **Route upsert no longer fails with duplicate `@id` error** — `PUT /id/<id>` momentarily indexes both the old and new route entries before removing the old one, causing Caddy to reject the update with `duplicate ID found at routes/1 and routes/2`. Fixed by switching to DELETE + POST, which removes the existing route atomically before re-adding the updated one.
+- **`X-Real-IP` / `X-Forwarded-For` headers now carry the real client IP** — the `{client_ip}` Caddyfile shorthand is not a raw JSON placeholder; `{http.vars.client_ip}` is the correct form in the admin-API JSON config. Changed `injectRealIP` to use `{http.vars.client_ip}` so the headers expand to the trusted-proxy-aware client IP instead of the literal string `{client_ip}`.
+
+### Helm chart: 0.9.9
+
+- **Placeholder `:80` / `:443` blocks now carry a `respond /healthz 200` route** — empty server blocks leave the `routes` field as `null` in Caddy's JSON config. When `k8s_ingress` tries to POST a new route to a null array, Caddy returns `cannot unmarshal object into RouteList`. The placeholder routes initialise the array so dynamic route injection works on a fresh pod.
+
+---
+
 ## [1.0.6] - 2026-04-17
 
 ### Bug Fixes
