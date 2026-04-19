@@ -44,3 +44,17 @@ podDisruptionBudget:
 # Make caddy the default IngressClass for easy testing
 k8sIngress:
   isDefaultClass: true
+
+# L4 test: TCP proxy on port 8080 → whoami:80
+l4:
+  enabled: true
+  hostPorts:
+    - port: 8080
+      protocol: TCP
+    - port: 5353
+      protocol: UDP
+  routes:
+    - address: ":8080"
+      upstream: "tcp/whoami.default.svc.cluster.local:80"
+    - address: "udp/:5353"
+      upstream: "udp/kube-dns.kube-system.svc.cluster.local:53"
