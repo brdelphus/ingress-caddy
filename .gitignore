@@ -3,3 +3,7 @@ helm/charts/
 
 # Local override values (may contain secrets)
 helm/values.local.yaml
+
+# Local dev/test values — not for production
+minikube-values.yaml
+*.local.yaml
