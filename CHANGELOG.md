@@ -1,6 +1,16 @@
 # Changelog
 
-## [1.0.19] - 2026-04-18
+## [1.0.20] - 2026-04-19
+
+### Bug Fixes
+
+- **`admin.api` INFO suppression not working** — setting `level: WARN` on a named logger without a writer is silently ignored by Caddy. Fixed by giving the `admin.api` logger a full config (writer + encoder + level + include filter) AND adding `admin.api` to the default logger's exclude list. Also moved all default logger configuration into a single `configureDefaultLogger()` call so `http.log.access` and `admin.api` excludes are always written together.
+
+### Helm chart: 0.9.22
+
+---
+
+## [1.0.19] - 2026-04-19
 
 ### Bug Fixes
 
