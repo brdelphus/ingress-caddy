@@ -6,7 +6,7 @@ fullnameOverride: ""
 
 image:
   repository: ghcr.io/brdelphus/ingress-caddy
-  tag: "1.0.20"
+  tag: "1.0.21"
   pullPolicy: IfNotPresent
 
 # Image pull secrets for private registries.
