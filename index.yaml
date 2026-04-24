@@ -3,6 +3,37 @@ entries:
   caddy:
   - apiVersion: v2
     appVersion: 1.0.21
+    created: "2026-04-24T10:27:29.305627884Z"
+    dependencies:
+    - condition: redis.enabled
+      name: redis
+      repository: https://charts.bitnami.com/bitnami
+      version: 25.3.9
+    description: Caddy ingress with WAF, TCP/UDP, CertMagic ACME (HTTP/TLS-ALPN/DNS/On-Demand),
+      cert-manager CSI, CrowdSec, GeoIP, authentication/SSO, rate limiting and caching
+    digest: 7800218ea3b0479f3ae993b623cf7ce236e893337e3f77a823e6da98631da224
+    icon: https://caddyserver.com/resources/images/caddy-circle-lock.svg
+    keywords:
+    - caddy
+    - ingress
+    - waf
+    - coraza
+    - l4
+    - crowdsec
+    - authentication
+    - sso
+    - oauth2
+    - oidc
+    - on-demand-tls
+    - acme
+    - eab
+    name: caddy
+    type: application
+    urls:
+    - https://github.com/brdelphus/ingress-caddy/releases/download/caddy-0.9.24/caddy-0.9.24.tgz
+    version: 0.9.24
+  - apiVersion: v2
+    appVersion: 1.0.21
     created: "2026-04-22T21:17:17.109032482Z"
     dependencies:
     - condition: redis.enabled
@@ -1002,4 +1033,4 @@ entries:
     urls:
     - https://github.com/brdelphus/caddy-custom/releases/download/caddy-0.1.0/caddy-0.1.0.tgz
     version: 0.1.0
-generated: "2026-04-22T21:17:17.110202554Z"
+generated: "2026-04-24T10:27:29.305874726Z"
