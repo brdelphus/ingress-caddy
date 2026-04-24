@@ -38,7 +38,7 @@ metadata:
 rules:
   - apiGroups: ["networking.k8s.io"]
     resources: ["ingresses"]
-    verbs: ["get", "list", "watch"]
+    verbs: ["get", "list", "watch", "patch"]
   - apiGroups: ["networking.k8s.io"]
     resources: ["ingresses/status"]
     verbs: ["update", "patch"]
